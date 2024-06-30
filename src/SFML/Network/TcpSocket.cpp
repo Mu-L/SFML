@@ -33,6 +33,7 @@
 #include <SFML/System/Err.hpp>
 
 #include <algorithm>
+#include <array>
 #include <ostream>
 
 #include <cstring>
@@ -140,73 +141,71 @@ Socket::Status TcpSocket::connect(const IpAddress& remoteAddress, unsigned short
         // Connection succeeded
         return Status::Done;
     }
-    else
+
+    // ----- We're using a timeout: we'll need a few tricks to make it work -----
+
+    // Save the previous blocking state
+    const bool blocking = isBlocking();
+
+    // Switch to non-blocking to enable our connection timeout
+    if (blocking)
+        setBlocking(false);
+
+    // Try to connect to the remote address
+    if (::connect(getNativeHandle(), reinterpret_cast<sockaddr*>(&address), sizeof(address)) >= 0)
     {
-        // ----- We're using a timeout: we'll need a few tricks to make it work -----
+        // We got instantly connected! (it may no happen a lot...)
+        setBlocking(blocking);
+        return Status::Done;
+    }
 
-        // Save the previous blocking state
-        const bool blocking = isBlocking();
+    // Get the error status
+    Status status = priv::SocketImpl::getErrorStatus();
 
-        // Switch to non-blocking to enable our connection timeout
-        if (blocking)
-            setBlocking(false);
+    // If we were in non-blocking mode, return immediately
+    if (!blocking)
+        return status;
 
-        // Try to connect to the remote address
-        if (::connect(getNativeHandle(), reinterpret_cast<sockaddr*>(&address), sizeof(address)) >= 0)
+    // Otherwise, wait until something happens to our socket (success, timeout or error)
+    if (status == Socket::Status::NotReady)
+    {
+        // Setup the selector
+        fd_set selector;
+        FD_ZERO(&selector);
+        FD_SET(getNativeHandle(), &selector);
+
+        // Setup the timeout
+        timeval time{};
+        time.tv_sec  = static_cast<long>(timeout.asMicroseconds() / 1000000);
+        time.tv_usec = static_cast<int>(timeout.asMicroseconds() % 1000000);
+
+        // Wait for something to write on our socket (which means that the connection request has returned)
+        if (select(static_cast<int>(getNativeHandle() + 1), nullptr, &selector, nullptr, &time) > 0)
         {
-            // We got instantly connected! (it may no happen a lot...)
-            setBlocking(blocking);
-            return Status::Done;
-        }
-
-        // Get the error status
-        Status status = priv::SocketImpl::getErrorStatus();
-
-        // If we were in non-blocking mode, return immediately
-        if (!blocking)
-            return status;
-
-        // Otherwise, wait until something happens to our socket (success, timeout or error)
-        if (status == Socket::Status::NotReady)
-        {
-            // Setup the selector
-            fd_set selector;
-            FD_ZERO(&selector);
-            FD_SET(getNativeHandle(), &selector);
-
-            // Setup the timeout
-            timeval time{};
-            time.tv_sec  = static_cast<long>(timeout.asMicroseconds() / 1000000);
-            time.tv_usec = static_cast<int>(timeout.asMicroseconds() % 1000000);
-
-            // Wait for something to write on our socket (which means that the connection request has returned)
-            if (select(static_cast<int>(getNativeHandle() + 1), nullptr, &selector, nullptr, &time) > 0)
+            // At this point the connection may have been either accepted or refused.
+            // To know whether it's a success or a failure, we must check the address of the connected peer
+            if (getRemoteAddress().has_value())
             {
-                // At this point the connection may have been either accepted or refused.
-                // To know whether it's a success or a failure, we must check the address of the connected peer
-                if (getRemoteAddress().has_value())
-                {
-                    // Connection accepted
-                    status = Status::Done;
-                }
-                else
-                {
-                    // Connection refused
-                    status = priv::SocketImpl::getErrorStatus();
-                }
+                // Connection accepted
+                status = Status::Done;
             }
             else
             {
-                // Failed to connect before timeout is over
+                // Connection refused
                 status = priv::SocketImpl::getErrorStatus();
             }
         }
-
-        // Switch back to blocking mode
-        setBlocking(true);
-
-        return status;
+        else
+        {
+            // Failed to connect before timeout is over
+            status = priv::SocketImpl::getErrorStatus();
+        }
     }
+
+    // Switch back to blocking mode
+    setBlocking(true);
+
+    return status;
 }
 
 
@@ -227,7 +226,7 @@ Socket::Status TcpSocket::send(const void* data, std::size_t size)
     if (!isBlocking())
         err() << "Warning: Partial sends might not be handled properly." << std::endl;
 
-    std::size_t sent;
+    std::size_t sent = 0;
 
     return send(data, size, sent);
 }
@@ -298,14 +297,12 @@ Socket::Status TcpSocket::receive(void* data, std::size_t size, std::size_t& rec
         received = static_cast<std::size_t>(sizeReceived);
         return Status::Done;
     }
-    else if (sizeReceived == 0)
+    if (sizeReceived == 0)
     {
         return Socket::Status::Disconnected;
     }
-    else
-    {
-        return priv::SocketImpl::getErrorStatus();
-    }
+
+    return priv::SocketImpl::getErrorStatus();
 }
 
 
@@ -347,7 +344,7 @@ Socket::Status TcpSocket::send(Packet& packet)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
     // Send the data block
-    std::size_t  sent;
+    std::size_t  sent   = 0;
     const Status status = send(m_blockToSendBuffer.data() + packet.m_sendPos,
                                static_cast<priv::SocketImpl::Size>(m_blockToSendBuffer.size() - packet.m_sendPos),
                                sent);
@@ -401,12 +398,12 @@ Socket::Status TcpSocket::receive(Packet& packet)
     }
 
     // Loop until we receive all the packet data
-    char buffer[1024];
+    std::array<char, 1024> buffer{};
     while (m_pendingPacket.data.size() < packetSize)
     {
         // Receive a chunk of data
         const std::size_t sizeToGet = std::min(packetSize - m_pendingPacket.data.size(), sizeof(buffer));
-        const Status      status    = receive(buffer, sizeToGet, received);
+        const Status      status    = receive(buffer.data(), sizeToGet, received);
         if (status != Status::Done)
             return status;
 
@@ -415,7 +412,7 @@ Socket::Status TcpSocket::receive(Packet& packet)
         {
             m_pendingPacket.data.resize(m_pendingPacket.data.size() + received);
             std::byte* begin = m_pendingPacket.data.data() + m_pendingPacket.data.size() - received;
-            std::memcpy(begin, buffer, received);
+            std::memcpy(begin, buffer.data(), received);
         }
     }
 

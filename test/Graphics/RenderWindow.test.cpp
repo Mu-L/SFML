@@ -21,8 +21,8 @@ TEST_CASE("[Graphics] sf::RenderWindow", runDisplayTests())
         STATIC_CHECK(std::has_virtual_destructor_v<sf::RenderWindow>);
         STATIC_CHECK(!std::is_copy_constructible_v<sf::RenderWindow>);
         STATIC_CHECK(!std::is_copy_assignable_v<sf::RenderWindow>);
-        STATIC_CHECK(!std::is_nothrow_move_constructible_v<sf::RenderWindow>);
-        STATIC_CHECK(!std::is_nothrow_move_assignable_v<sf::RenderWindow>);
+        STATIC_CHECK(std::is_nothrow_move_constructible_v<sf::RenderWindow>);
+        STATIC_CHECK(std::is_nothrow_move_assignable_v<sf::RenderWindow>);
     }
 
     SECTION("Construction")
@@ -33,7 +33,7 @@ TEST_CASE("[Graphics] sf::RenderWindow", runDisplayTests())
                                           "Window Title",
                                           sf::Style::Default,
                                           sf::State::Windowed,
-                                          sf::ContextSettings());
+                                          sf::ContextSettings{});
             CHECK(window.isOpen());
             CHECK(window.getSize() == sf::Vector2u(256, 256));
             CHECK(window.getNativeHandle() != sf::WindowHandle());
@@ -51,7 +51,7 @@ TEST_CASE("[Graphics] sf::RenderWindow", runDisplayTests())
             const sf::RenderWindow window(sf::VideoMode(sf::Vector2u(240, 300), 24),
                                           "Window Title",
                                           sf::State::Windowed,
-                                          sf::ContextSettings());
+                                          sf::ContextSettings{});
             CHECK(window.isOpen());
             CHECK(window.getSize() == sf::Vector2u(240, 300));
             CHECK(window.getNativeHandle() != sf::WindowHandle());
@@ -72,11 +72,10 @@ TEST_CASE("[Graphics] sf::RenderWindow", runDisplayTests())
                                 "Window Title",
                                 sf::Style::Default,
                                 sf::State::Windowed,
-                                sf::ContextSettings());
+                                sf::ContextSettings{});
         REQUIRE(window.getSize() == sf::Vector2u(256, 256));
 
-        sf::Texture texture;
-        REQUIRE(texture.create(window.getSize()));
+        auto texture = sf::Texture::create(window.getSize()).value();
 
         window.clear(sf::Color::Red);
         texture.update(window);

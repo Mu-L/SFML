@@ -135,6 +135,30 @@ public:
     ~Window() override;
 
     ////////////////////////////////////////////////////////////
+    /// \brief Deleted copy constructor
+    ///
+    ////////////////////////////////////////////////////////////
+    Window(const Window&) = delete;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Deleted copy assignment
+    ///
+    ////////////////////////////////////////////////////////////
+    Window& operator=(const Window&) = delete;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Move constructor
+    ///
+    ////////////////////////////////////////////////////////////
+    Window(Window&&) noexcept;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Move assignment
+    ///
+    ////////////////////////////////////////////////////////////
+    Window& operator=(Window&&) noexcept;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Create (or recreate) the window
     ///
     /// If the window was already created, it closes it first.
@@ -221,7 +245,7 @@ public:
     /// \return Structure containing the OpenGL context settings
     ///
     ////////////////////////////////////////////////////////////
-    const ContextSettings& getSettings() const;
+    [[nodiscard]] const ContextSettings& getSettings() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Enable or disable vertical synchronization
@@ -347,10 +371,10 @@ private:
 /// while (window.isOpen())
 /// {
 ///    // Event processing
-///    for (sf::Event event; window.pollEvent(event);)
+///    while (const std::optional event = window.pollEvent())
 ///    {
 ///        // Request for closing the window
-///        if (event.type == sf::Event::Closed)
+///        if (event->is<sf::Event::Closed>())
 ///            window.close();
 ///    }
 ///

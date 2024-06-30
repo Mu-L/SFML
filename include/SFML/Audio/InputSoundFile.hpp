@@ -33,6 +33,8 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <vector>
 
 #include <cstddef>
 #include <cstdint>
@@ -63,10 +65,10 @@ public:
     ///
     /// \param filename Path of the sound file to load
     ///
-    /// \return True if the file was successfully opened
+    /// \return Input sound file if the file was successfully opened, otherwise `std::nullopt`
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool openFromFile(const std::filesystem::path& filename);
+    [[nodiscard]] static std::optional<InputSoundFile> openFromFile(const std::filesystem::path& filename);
 
     ////////////////////////////////////////////////////////////
     /// \brief Open a sound file in memory for reading
@@ -77,10 +79,10 @@ public:
     /// \param data        Pointer to the file data in memory
     /// \param sizeInBytes Size of the data to load, in bytes
     ///
-    /// \return True if the file was successfully opened
+    /// \return Input sound file if the file was successfully opened, otherwise `std::nullopt`
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool openFromMemory(const void* data, std::size_t sizeInBytes);
+    [[nodiscard]] static std::optional<InputSoundFile> openFromMemory(const void* data, std::size_t sizeInBytes);
 
     ////////////////////////////////////////////////////////////
     /// \brief Open a sound file from a custom stream for reading
@@ -90,10 +92,10 @@ public:
     ///
     /// \param stream Source stream to read from
     ///
-    /// \return True if the file was successfully opened
+    /// \return Input sound file if the file was successfully opened, otherwise `std::nullopt`
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool openFromStream(InputStream& stream);
+    [[nodiscard]] static std::optional<InputSoundFile> openFromStream(InputStream& stream);
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the total number of audio samples in the file
@@ -101,7 +103,7 @@ public:
     /// \return Number of samples
     ///
     ////////////////////////////////////////////////////////////
-    std::uint64_t getSampleCount() const;
+    [[nodiscard]] std::uint64_t getSampleCount() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the number of channels used by the sound
@@ -109,7 +111,7 @@ public:
     /// \return Number of channels (1 = mono, 2 = stereo)
     ///
     ////////////////////////////////////////////////////////////
-    unsigned int getChannelCount() const;
+    [[nodiscard]] unsigned int getChannelCount() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the sample rate of the sound
@@ -117,7 +119,20 @@ public:
     /// \return Sample rate, in samples per second
     ///
     ////////////////////////////////////////////////////////////
-    unsigned int getSampleRate() const;
+    [[nodiscard]] unsigned int getSampleRate() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the map of position in sample frame to sound channel
+    ///
+    /// This is used to map a sample in the sample stream to a
+    /// position during spatialisation.
+    ///
+    /// \return Map of position in sample frame to sound channel
+    ///
+    /// \see getSampleRate, getChannelCount, getDuration
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] const std::vector<SoundChannel>& getChannelMap() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the total duration of the sound file
@@ -128,7 +143,7 @@ public:
     /// \return Duration of the sound file
     ///
     ////////////////////////////////////////////////////////////
-    Time getDuration() const;
+    [[nodiscard]] Time getDuration() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the read offset of the file in time
@@ -136,7 +151,7 @@ public:
     /// \return Time position
     ///
     ////////////////////////////////////////////////////////////
-    Time getTimeOffset() const;
+    [[nodiscard]] Time getTimeOffset() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the read offset of the file in samples
@@ -144,7 +159,7 @@ public:
     /// \return Sample position
     ///
     ////////////////////////////////////////////////////////////
-    std::uint64_t getSampleOffset() const;
+    [[nodiscard]] std::uint64_t getSampleOffset() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the current read position to the given sample offset
@@ -198,6 +213,14 @@ public:
 
 private:
     ////////////////////////////////////////////////////////////
+    /// \brief Default constructor
+    ///
+    /// Useful for implementing close()
+    ///
+    ////////////////////////////////////////////////////////////
+    InputSoundFile() = default;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Deleter for input streams that only conditionally deletes
     ///
     ////////////////////////////////////////////////////////////
@@ -215,14 +238,24 @@ private:
     };
 
     ////////////////////////////////////////////////////////////
+    /// \brief Constructor from reader, stream, and attributes
+    ///
+    ////////////////////////////////////////////////////////////
+    InputSoundFile(std::unique_ptr<SoundFileReader>&&            reader,
+                   std::unique_ptr<InputStream, StreamDeleter>&& stream,
+                   std::uint64_t                                 sampleCount,
+                   unsigned int                                  sampleRate,
+                   std::vector<SoundChannel>&&                   channelMap);
+
+    ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
     std::unique_ptr<SoundFileReader>            m_reader; //!< Reader that handles I/O on the file's format
     std::unique_ptr<InputStream, StreamDeleter> m_stream{nullptr, false}; //!< Input stream used to access the file's data
     std::uint64_t                               m_sampleOffset{};         //!< Sample Read Position
     std::uint64_t                               m_sampleCount{};          //!< Total number of samples in the file
-    unsigned int                                m_channelCount{};         //!< Number of channels of the sound
     unsigned int                                m_sampleRate{};           //!< Number of samples per second
+    std::vector<SoundChannel>                   m_channelMap; //!< The map of position in sample frame to sound channel
 };
 
 } // namespace sf
@@ -242,9 +275,7 @@ private:
 /// Usage example:
 /// \code
 /// // Open a sound file
-/// sf::InputSoundFile file;
-/// if (!file.openFromFile("music.ogg"))
-///     /* error */;
+/// auto file = sf::InputSoundFile::openFromFile("music.ogg").value();
 ///
 /// // Print the sound attributes
 /// std::cout << "duration: " << file.getDuration().asSeconds() << '\n'

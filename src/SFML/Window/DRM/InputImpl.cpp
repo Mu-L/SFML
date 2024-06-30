@@ -53,9 +53,9 @@ namespace
 {
 struct TouchSlot
 {
-    int          oldId{-1};
-    int          id{-1};
-    sf::Vector2i pos;
+    std::optional<unsigned int> oldId;
+    std::optional<unsigned int> id;
+    sf::Vector2i                pos;
 };
 
 std::recursive_mutex inputMutex; // threadsafe? maybe...
@@ -191,7 +191,7 @@ sf::Keyboard::Key toKey(int code)
 {
     switch (code)
     {
-        // clang-format off
+            // clang-format off
         case KEY_ESC:           return sf::Keyboard::Key::Escape;
         case KEY_1:             return sf::Keyboard::Key::Num1;
         case KEY_2:             return sf::Keyboard::Key::Num2;
@@ -306,7 +306,7 @@ sf::Keyboard::Key toKey(int code)
     }
 }
 
-void pushEvent(sf::Event& event)
+void pushEvent(const sf::Event& event)
 {
     if (eventQueue.size() >= maxQueue)
         eventQueue.pop();
@@ -325,38 +325,23 @@ void processSlots()
 {
     for (auto& slot : touchSlots)
     {
-        sf::Event event;
-
-        event.touch.x = slot.pos.x;
-        event.touch.y = slot.pos.y;
-
         if (slot.oldId == slot.id)
         {
-            event.type         = sf::Event::TouchMoved;
-            event.touch.finger = static_cast<unsigned int>(slot.id);
-            pushEvent(event);
+            pushEvent(sf::Event::TouchMoved{*slot.id, slot.pos});
         }
         else
         {
-            if (slot.oldId != -1)
-            {
-                event.type         = sf::Event::TouchEnded;
-                event.touch.finger = static_cast<unsigned int>(slot.oldId);
-                pushEvent(event);
-            }
-            if (slot.id != -1)
-            {
-                event.type         = sf::Event::TouchBegan;
-                event.touch.finger = static_cast<unsigned int>(slot.id);
-                pushEvent(event);
-            }
+            if (slot.oldId.has_value())
+                pushEvent(sf::Event::TouchEnded{*slot.oldId, slot.pos});
+            if (slot.id.has_value())
+                pushEvent(sf::Event::TouchBegan{*slot.id, slot.pos});
 
             slot.oldId = slot.id;
         }
     }
 }
 
-bool eventProcess(sf::Event& event)
+std::optional<sf::Event> eventProcess()
 {
     const std::lock_guard lock(inputMutex);
 
@@ -368,13 +353,13 @@ bool eventProcess(sf::Event& event)
     static unsigned int doDeferredText = 0;
     if (doDeferredText)
     {
-        event.type         = sf::Event::TextEntered;
-        event.text.unicode = doDeferredText;
-        doDeferredText     = 0;
-        return true;
+        const auto event = sf::Event::TextEntered{doDeferredText};
+
+        doDeferredText = 0;
+        return event;
     }
 
-    ssize_t bytesRead;
+    ssize_t bytesRead = 0;
 
     // Check all the open file descriptors for the next event
     for (auto& fileDescriptor : fileDescriptors)
@@ -388,52 +373,50 @@ bool eventProcess(sf::Event& event)
             {
                 if (const std::optional<sf::Mouse::Button> mb = toMouseButton(inputEvent.code))
                 {
-                    event.type = inputEvent.value ? sf::Event::MouseButtonPressed : sf::Event::MouseButtonReleased;
-                    event.mouseButton.button = *mb;
-                    event.mouseButton.x      = mousePos.x;
-                    event.mouseButton.y      = mousePos.y;
-
                     mouseMap[*mb] = inputEvent.value;
-                    return true;
+
+                    if (inputEvent.value)
+                        return sf::Event::MouseButtonPressed{*mb, mousePos};
+
+                    return sf::Event::MouseButtonReleased{*mb, mousePos};
                 }
-                else
+
+                const sf::Keyboard::Key kb = toKey(inputEvent.code);
+
+                unsigned int special = 0;
+                if ((kb == sf::Keyboard::Key::Delete) || (kb == sf::Keyboard::Key::Backspace))
+                    special = (kb == sf::Keyboard::Key::Delete) ? 127 : 8;
+
+                if (inputEvent.value == 2)
                 {
-                    const sf::Keyboard::Key kb = toKey(inputEvent.code);
-
-                    unsigned int special = 0;
-                    if ((kb == sf::Keyboard::Key::Delete) || (kb == sf::Keyboard::Key::Backspace))
-                        special = (kb == sf::Keyboard::Key::Delete) ? 127 : 8;
-
-                    if (inputEvent.value == 2)
+                    // key repeat events
+                    //
+                    if (special)
                     {
-                        // key repeat events
-                        //
-                        if (special)
-                        {
-                            event.type         = sf::Event::TextEntered;
-                            event.text.unicode = special;
-                            return true;
-                        }
+                        return sf::Event::TextEntered{special};
                     }
-                    else if (kb != sf::Keyboard::Key::Unknown)
-                    {
-                        // key down and key up events
-                        //
-                        event.type         = inputEvent.value ? sf::Event::KeyPressed : sf::Event::KeyReleased;
-                        event.key.code     = kb;
-                        event.key.scancode = sf::Keyboard::Scan::Unknown; // TODO: not implemented
-                        event.key.alt      = altDown();
-                        event.key.control  = controlDown();
-                        event.key.shift    = shiftDown();
-                        event.key.system   = systemDown();
+                }
+                else if (kb != sf::Keyboard::Key::Unknown)
+                {
+                    // key down and key up events
+                    //
+                    sf::Event::KeyChanged keyChanged;
+                    keyChanged.code     = kb;
+                    keyChanged.scancode = sf::Keyboard::Scan::Unknown; // TODO: not implemented
+                    keyChanged.alt      = altDown();
+                    keyChanged.control  = controlDown();
+                    keyChanged.shift    = shiftDown();
+                    keyChanged.system   = systemDown();
 
-                        keyMap[kb] = inputEvent.value;
+                    keyMap[kb] = inputEvent.value;
 
-                        if (special && inputEvent.value)
-                            doDeferredText = special;
+                    if (special && inputEvent.value)
+                        doDeferredText = special;
 
-                        return true;
-                    }
+                    if (inputEvent.value)
+                        return sf::Event::KeyPressed{keyChanged};
+
+                    return sf::Event::KeyReleased{keyChanged};
                 }
             }
             else if (inputEvent.type == EV_REL)
@@ -452,19 +435,14 @@ bool eventProcess(sf::Event& event)
                         break;
 
                     case REL_WHEEL:
-                        event.type                   = sf::Event::MouseWheelScrolled;
-                        event.mouseWheelScroll.delta = static_cast<float>(inputEvent.value);
-                        event.mouseWheelScroll.x     = mousePos.x;
-                        event.mouseWheelScroll.y     = mousePos.y;
-                        return true;
+                        sf::Event::MouseWheelScrolled mouseWheelScrolled;
+                        mouseWheelScrolled.delta    = static_cast<float>(inputEvent.value);
+                        mouseWheelScrolled.position = mousePos;
+                        return mouseWheelScrolled;
                 }
-
                 if (posChange)
                 {
-                    event.type        = sf::Event::MouseMoved;
-                    event.mouseMove.x = mousePos.x;
-                    event.mouseMove.y = mousePos.y;
-                    return true;
+                    return sf::Event::MouseMoved{mousePos};
                 }
             }
             else if (inputEvent.type == EV_ABS)
@@ -476,7 +454,7 @@ bool eventProcess(sf::Event& event)
                         touchFd     = fileDescriptor;
                         break;
                     case ABS_MT_TRACKING_ID:
-                        atSlot(currentSlot).id = inputEvent.value;
+                        atSlot(currentSlot).id = inputEvent.value >= 0 ? std::optional(inputEvent.value) : std::nullopt;
                         touchFd                = fileDescriptor;
                         break;
                     case ABS_MT_POSITION_X:
@@ -502,7 +480,6 @@ bool eventProcess(sf::Event& event)
         if ((bytesRead < 0) && (errno != EAGAIN))
             sf::err() << " Error: " << std::strerror(errno) << std::endl;
     }
-
     // Finally check if there is a Text event on stdin
     //
     // We only clear the ICANON flag for the time of reading
@@ -548,23 +525,18 @@ bool eventProcess(sf::Event& event)
     if (code > 0)
     {
         // TODO: Proper unicode handling
-        event.type         = sf::Event::TextEntered;
-        event.text.unicode = code;
-        return true;
+        return sf::Event::TextEntered{code};
     }
 
     // No events available
-    return false;
+    return std::nullopt;
 }
 
 // assumes inputMutex is locked
 void update()
 {
-    sf::Event event;
-    while (eventProcess(event))
-    {
-        pushEvent(event);
-    }
+    while (const std::optional event = eventProcess())
+        pushEvent(*event);
 }
 } // namespace
 
@@ -672,7 +644,7 @@ bool isTouchDown(unsigned int finger)
 {
     return std::any_of(touchSlots.cbegin(),
                        touchSlots.cend(),
-                       [finger](const TouchSlot& slot) { return slot.id == static_cast<int>(finger); });
+                       [finger](const TouchSlot& slot) { return slot.id == finger; });
 }
 
 
@@ -681,7 +653,7 @@ Vector2i getTouchPosition(unsigned int finger)
 {
     for (const auto& slot : touchSlots)
     {
-        if (slot.id == static_cast<int>(finger))
+        if (slot.id == finger)
             return slot.pos;
     }
 
@@ -697,36 +669,35 @@ Vector2i getTouchPosition(unsigned int finger, const WindowBase& /*relativeTo*/)
 
 
 ////////////////////////////////////////////////////////////
-bool checkEvent(Event& event)
+std::optional<Event> checkEvent()
 {
     const std::lock_guard lock(inputMutex);
+
     if (!eventQueue.empty())
     {
-        event = eventQueue.front();
+        auto event = std::make_optional(eventQueue.front());
         eventQueue.pop();
 
-        return true;
+        return event;
     }
 
-    if (eventProcess(event))
+    if (const std::optional event = eventProcess())
     {
-        return true;
+        return event;
     }
-    else
+
+    // In the case of multitouch, eventProcess() could have returned false
+    // but added events directly to the queue.  (This is ugly, but I'm not
+    // sure of a good way to handle generating multiple events at once.)
+    if (!eventQueue.empty())
     {
-        // In the case of multitouch, eventProcess() could have returned false
-        // but added events directly to the queue.  (This is ugly, but I'm not
-        // sure of a good way to handle generating multiple events at once.)
-        if (!eventQueue.empty())
-        {
-            event = eventQueue.front();
-            eventQueue.pop();
+        auto event = std::make_optional(eventQueue.front());
+        eventQueue.pop();
 
-            return true;
-        }
+        return event;
     }
 
-    return false;
+    return std::nullopt;
 }
 
 

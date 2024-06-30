@@ -99,11 +99,8 @@ bool SensorImpl::open(Sensor::Type sensor)
     if (!m_sensor)
         return false;
 
-    // Get the minimum delay allowed between events
-    Time minimumDelay = microseconds(ASensor_getMinDelay(m_sensor));
-
     // Set the event rate (not to consume too much battery)
-    ASensorEventQueue_setEventRate(sensorEventQueue, m_sensor, static_cast<std::int32_t>(minimumDelay.asMicroseconds()));
+    ASensorEventQueue_setEventRate(sensorEventQueue, m_sensor, ASensor_getMinDelay(m_sensor));
 
     // Save the type of the sensor
     m_type = sensor;
@@ -151,7 +148,7 @@ const ASensor* SensorImpl::getDefaultSensor(Sensor::Type sensor)
          ASENSOR_TYPE_LINEAR_ACCELERATION,
          ASENSOR_TYPE_ORIENTATION};
 
-    int type = types[sensor];
+    const int type = types[sensor];
 
     // Retrieve the default sensor matching this type
     return ASensorManager_getDefaultSensor(sensorManager, type);

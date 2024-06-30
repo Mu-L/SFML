@@ -29,9 +29,12 @@
 ////////////////////////////////////////////////////////////
 #include <SFML/Audio/Export.hpp>
 
-#include <SFML/Audio/AlResource.hpp>
+#include <SFML/Audio/AudioResource.hpp>
 
+#include <SFML/System/Angle.hpp>
 #include <SFML/System/Vector3.hpp>
+
+#include <functional>
 
 
 namespace sf
@@ -41,14 +44,14 @@ namespace sf
 /// \brief Base class defining a sound's properties
 ///
 ////////////////////////////////////////////////////////////
-class SFML_AUDIO_API SoundSource : AlResource
+class SFML_AUDIO_API SoundSource : protected AudioResource
 {
 public:
     ////////////////////////////////////////////////////////////
     /// \brief Enumeration of the sound source states
     ///
     ////////////////////////////////////////////////////////////
-    enum Status
+    enum class Status
     {
         Stopped, //!< Sound is not playing
         Paused,  //!< Sound is paused
@@ -56,18 +59,124 @@ public:
     };
 
     ////////////////////////////////////////////////////////////
-    /// \brief Copy constructor
+    /// \brief Structure defining the properties of a directional cone
     ///
-    /// \param copy Instance to copy
+    /// Sounds will play at gain 1 when the listener
+    /// is positioned within the inner angle of the cone.
+    /// Sounds will play at outerGain when the listener is
+    /// positioned outside the outer angle of the cone.
+    /// The gain declines linearly from 1 to outerGain as the
+    /// listener moves from the inner angle to the outer angle.
     ///
     ////////////////////////////////////////////////////////////
-    SoundSource(const SoundSource& copy);
+    struct Cone
+    {
+        Angle innerAngle;  //!< Inner angle
+        Angle outerAngle;  //!< Outer angle
+        float outerGain{}; //!< Outer gain
+    };
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Callable that is provided with sound data for processing
+    ///
+    /// When the audio engine sources sound data from sound
+    /// sources it will pass the data through an effects
+    /// processor if one is set. The sound data will already be
+    /// converted to the internal floating point format.
+    ///
+    /// Sound data that is processed this way is provided in
+    /// frames. Each frame contains 1 floating point sample per
+    /// channel. If e.g. the data source provides stereo data,
+    /// each frame will contain 2 floats.
+    ///
+    /// The effects processor function takes 4 parameters:
+    ///   - The input data frames, channels interleaved
+    ///   - The number of input data frames available
+    ///   - The buffer to write output data frames to, channels interleaved
+    ///   - The number of output data frames that the output buffer can hold
+    ///   - The channel count
+    ///
+    /// The input and output frame counts are in/out parameters.
+    ///
+    /// When this function is called, the input count will
+    /// contain the number of frames available in the input
+    /// buffer. The output count will contain the size of the
+    /// output buffer i.e. the maximum number of frames that
+    /// can be written to the output buffer.
+    ///
+    /// Attempting to read more frames than the input frame
+    /// count or write more frames than the output frame count
+    /// will result in undefined behaviour.
+    ///
+    /// It is important to note that the channel count of the
+    /// audio engine currently sourcing data from this sound
+    /// will always be provided in frameChannelCount. This can
+    /// be different from the channel count of the sound source
+    /// so make sure to size necessary processing buffers
+    /// according to the engine channel count and not the sound
+    /// source channel count.
+    ///
+    /// When done processing the frames, the input and output
+    /// frame counts must be updated to reflect the actual
+    /// number of frames that were read from the input and
+    /// written to the output.
+    ///
+    /// The processing function should always try to process as
+    /// much sound data as possible i.e. always try to fill the
+    /// output buffer to the maximum. In certain situations for
+    /// specific effects it can be possible that the input frame
+    /// count and output frame count aren't equal. As long as
+    /// the frame counts are updated accordingly this is
+    /// perfectly valid.
+    ///
+    /// If the audio engine determines that no audio data is
+    /// available from the data source, the input data frames
+    /// pointer is set to nullptr and the input frame count is
+    /// set to 0. In this case it is up to the function to
+    /// decide how to handle the situation. For specific effects
+    /// e.g. Echo/Delay buffered data might still be able to be
+    /// written to the output buffer even if there is no longer
+    /// any input data.
+    ///
+    /// An important thing to remember is that this function is
+    /// directly called by the audio engine. Because the audio
+    /// engine runs on an internal thread of its own, make sure
+    /// access to shared data is synchronized appropriately.
+    ///
+    /// Because this function is stored by the SoundSource
+    /// object it will be able to be called as long as the
+    /// SoundSource object hasn't yet been destroyed. Make sure
+    /// that any data this function references outlives the
+    /// SoundSource object otherwise use-after-free errors will
+    /// occur.
+    ///
+    ////////////////////////////////////////////////////////////
+    using EffectProcessor = std::function<
+        void(const float* inputFrames, unsigned int& inputFrameCount, float* outputFrames, unsigned int& outputFrameCount, unsigned int frameChannelCount)>;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Copy constructor
+    ///
+    ////////////////////////////////////////////////////////////
+    SoundSource(const SoundSource&) = default;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Move constructor
+    ///
+    ////////////////////////////////////////////////////////////
+    SoundSource(SoundSource&&) noexcept = default;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Move assignment
+    ///
+    ////////////////////////////////////////////////////////////
+    SoundSource& operator=(SoundSource&&) noexcept = default;
 
     ////////////////////////////////////////////////////////////
     /// \brief Destructor
     ///
     ////////////////////////////////////////////////////////////
-    virtual ~SoundSource();
+    virtual ~SoundSource() = default;
 
     ////////////////////////////////////////////////////////////
     /// \brief Set the pitch of the sound
@@ -86,6 +195,21 @@ public:
     void setPitch(float pitch);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Set the pan of the sound
+    ///
+    /// Using panning, a mono sound can be panned between
+    /// stereo channels. When the pan is set to -1, the sound
+    /// is played only on the left channel, when the pan is set
+    /// to +1, the sound is played only on the right channel.
+    ///
+    /// \param pan New pan to apply to the sound [-1, +1]
+    ///
+    /// \see getPan
+    ///
+    ////////////////////////////////////////////////////////////
+    void setPan(float pan);
+
+    ////////////////////////////////////////////////////////////
     /// \brief Set the volume of the sound
     ///
     /// The volume is a value between 0 (mute) and 100 (full volume).
@@ -97,6 +221,21 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     void setVolume(float volume);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set whether spatialization of the sound is enabled
+    ///
+    /// Spatialization is the application of various effects to
+    /// simulate a sound being emitted at a virtual position in
+    /// 3D space and exhibiting various physical phenomena such as
+    /// directional attenuation and doppler shift.
+    ///
+    /// \param enabled True to enable spatialization, false to disable
+    ///
+    /// \see isSpatializationEnabled
+    ///
+    ////////////////////////////////////////////////////////////
+    void setSpatializationEnabled(bool enabled);
 
     ////////////////////////////////////////////////////////////
     /// \brief Set the 3D position of the sound in the audio scene
@@ -111,6 +250,79 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     void setPosition(const Vector3f& position);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set the 3D direction of the sound in the audio scene
+    ///
+    /// The direction defines where the sound source is facing
+    /// in 3D space. It will affect how the sound is attenuated
+    /// if facing away from the listener.
+    /// The default direction of a sound is (0, 0, -1).
+    ///
+    /// \param direction Direction of the sound in the scene
+    ///
+    /// \see getDirection
+    ///
+    ////////////////////////////////////////////////////////////
+    void setDirection(const Vector3f& direction);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set the cone properties of the sound in the audio scene
+    ///
+    /// The cone defines how directional attenuation is applied.
+    /// The default cone of a sound is {2 * PI, 2 * PI, 1}.
+    ///
+    /// \param cone Cone properties of the sound in the scene
+    ///
+    /// \see getCone
+    ///
+    ////////////////////////////////////////////////////////////
+    void setCone(const Cone& cone);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set the 3D velocity of the sound in the audio scene
+    ///
+    /// The velocity is used to determine how to doppler shift
+    /// the sound. Sounds moving towards the listener will be
+    /// perceived to have a higher pitch and sounds moving away
+    /// from the listener will be perceived to have a lower pitch.
+    ///
+    /// \param velocity Velocity of the sound in the scene
+    ///
+    /// \see getVelocity
+    ///
+    ////////////////////////////////////////////////////////////
+    void setVelocity(const Vector3f& velocity);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set the doppler factor of the sound
+    ///
+    /// The doppler factor determines how strong the doppler
+    /// shift will be.
+    ///
+    /// \param factor New doppler factor to apply to the sound
+    ///
+    /// \see getDopplerFactor
+    ///
+    ////////////////////////////////////////////////////////////
+    void setDopplerFactor(float factor);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set the directional attenuation factor of the sound
+    ///
+    /// Depending on the virtual position of an output channel
+    /// relative to the listener (such as in surround sound
+    /// setups), sounds will be attenuated when emitting them
+    /// from certain channels. This factor determines how strong
+    /// the attenuation based on output channel position
+    /// relative to the listener is.
+    ///
+    /// \param factor New directional attenuation factor to apply to the sound
+    ///
+    /// \see getDirectionalAttenuationFactor
+    ///
+    ////////////////////////////////////////////////////////////
+    void setDirectionalAttenuationFactor(float factor);
 
     ////////////////////////////////////////////////////////////
     /// \brief Make the sound's position relative to the listener or absolute
@@ -146,6 +358,51 @@ public:
     void setMinDistance(float distance);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Set the maximum distance of the sound
+    ///
+    /// The "maximum distance" of a sound is the minimum
+    /// distance at which it is heard at its minimum volume. Closer
+    /// than the maximum distance, it will start to fade in according
+    /// to its attenuation factor.
+    /// The default value of the maximum distance is the maximum
+    /// value a float can represent.
+    ///
+    /// \param distance New maximum distance of the sound
+    ///
+    /// \see getMaxDistance, setAttenuation
+    ///
+    ////////////////////////////////////////////////////////////
+    void setMaxDistance(float distance);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set the minimum gain of the sound
+    ///
+    /// When the sound is further away from the listener than
+    /// the "maximum distance" the attenuated gain is clamped
+    /// so it cannot go below the minimum gain value.
+    ///
+    /// \param gain New minimum gain of the sound
+    ///
+    /// \see getMinGain, setAttenuation
+    ///
+    ////////////////////////////////////////////////////////////
+    void setMinGain(float gain);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set the maximum gain of the sound
+    ///
+    /// When the sound is closer from the listener than
+    /// the "minimum distance" the attenuated gain is clamped
+    /// so it cannot go above the maximum gain value.
+    ///
+    /// \param gain New maximum gain of the sound
+    ///
+    /// \see getMaxGain, setAttenuation
+    ///
+    ////////////////////////////////////////////////////////////
+    void setMaxGain(float gain);
+
+    ////////////////////////////////////////////////////////////
     /// \brief Set the attenuation factor of the sound
     ///
     /// The attenuation is a multiplicative factor which makes
@@ -165,6 +422,17 @@ public:
     void setAttenuation(float attenuation);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Set the effect processor to be applied to the sound
+    ///
+    /// The effect processor is a callable that will be called
+    /// with sound data to be processed.
+    ///
+    /// \param effectProcessor The effect processor to attach to this sound, attach an empty processor to disable processing
+    ///
+    ////////////////////////////////////////////////////////////
+    virtual void setEffectProcessor(EffectProcessor effectProcessor);
+
+    ////////////////////////////////////////////////////////////
     /// \brief Get the pitch of the sound
     ///
     /// \return Pitch of the sound
@@ -172,7 +440,17 @@ public:
     /// \see setPitch
     ///
     ////////////////////////////////////////////////////////////
-    float getPitch() const;
+    [[nodiscard]] float getPitch() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the pan of the sound
+    ///
+    /// \return Pan of the sound
+    ///
+    /// \see setPan
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] float getPan() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the volume of the sound
@@ -182,7 +460,17 @@ public:
     /// \see setVolume
     ///
     ////////////////////////////////////////////////////////////
-    float getVolume() const;
+    [[nodiscard]] float getVolume() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Tell whether spatialization of the sound is enabled
+    ///
+    /// \return True if spatialization is enabled, false if it's disabled
+    ///
+    /// \see setSpatializationEnabled
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] bool isSpatializationEnabled() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the 3D position of the sound in the audio scene
@@ -192,7 +480,57 @@ public:
     /// \see setPosition
     ///
     ////////////////////////////////////////////////////////////
-    Vector3f getPosition() const;
+    [[nodiscard]] Vector3f getPosition() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the 3D direction of the sound in the audio scene
+    ///
+    /// \return Direction of the sound
+    ///
+    /// \see setDirection
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] Vector3f getDirection() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the cone properties of the sound in the audio scene
+    ///
+    /// \return Cone properties of the sound
+    ///
+    /// \see setCone
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] Cone getCone() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the 3D velocity of the sound in the audio scene
+    ///
+    /// \return Velocity of the sound
+    ///
+    /// \see setVelocity
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] Vector3f getVelocity() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the doppler factor of the sound
+    ///
+    /// \return Doppler factor of the sound
+    ///
+    /// \see setDopplerFactor
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] float getDopplerFactor() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the directional attenuation factor of the sound
+    ///
+    /// \return Directional attenuation factor of the sound
+    ///
+    /// \see setDirectionalAttenuationFactor
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] float getDirectionalAttenuationFactor() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Tell whether the sound's position is relative to the
@@ -203,7 +541,7 @@ public:
     /// \see setRelativeToListener
     ///
     ////////////////////////////////////////////////////////////
-    bool isRelativeToListener() const;
+    [[nodiscard]] bool isRelativeToListener() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the minimum distance of the sound
@@ -213,7 +551,37 @@ public:
     /// \see setMinDistance, getAttenuation
     ///
     ////////////////////////////////////////////////////////////
-    float getMinDistance() const;
+    [[nodiscard]] float getMinDistance() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the maximum distance of the sound
+    ///
+    /// \return Maximum distance of the sound
+    ///
+    /// \see setMaxDistance, getAttenuation
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] float getMaxDistance() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the minimum gain of the sound
+    ///
+    /// \return Minimum gain of the sound
+    ///
+    /// \see setMinGain, getAttenuation
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] float getMinGain() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the maximum gain of the sound
+    ///
+    /// \return Maximum gain of the sound
+    ///
+    /// \see setMaxGain, getAttenuation
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] float getMaxGain() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the attenuation factor of the sound
@@ -223,7 +591,7 @@ public:
     /// \see setAttenuation, getMinDistance
     ///
     ////////////////////////////////////////////////////////////
-    float getAttenuation() const;
+    [[nodiscard]] float getAttenuation() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Overload of assignment operator
@@ -276,7 +644,7 @@ public:
     /// \return Current status of the sound
     ///
     ////////////////////////////////////////////////////////////
-    virtual Status getStatus() const;
+    [[nodiscard]] virtual Status getStatus() const = 0;
 
 protected:
     ////////////////////////////////////////////////////////////
@@ -285,12 +653,16 @@ protected:
     /// This constructor is meant to be called by derived classes only.
     ///
     ////////////////////////////////////////////////////////////
-    SoundSource();
+    SoundSource() = default;
 
+private:
     ////////////////////////////////////////////////////////////
-    // Member data
+    /// \brief Get the sound object
+    ///
+    /// \return The sound object
+    ///
     ////////////////////////////////////////////////////////////
-    unsigned int m_source{}; //!< OpenAL source identifier
+    [[nodiscard]] virtual void* getSound() const = 0;
 };
 
 // NOLINTEND(readability-make-member-function-const)

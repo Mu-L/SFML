@@ -37,6 +37,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -73,7 +74,7 @@ public:
     };
 
     ////////////////////////////////////////////////////////////
-    /// \brief Load the font from a file
+    /// \brief Open the font from a file
     ///
     /// The supported font formats are: TrueType, Type 1, CFF,
     /// OpenType, SFNT, X11 PCF, Windows FNT, BDF, PFR and Type 42.
@@ -83,59 +84,55 @@ public:
     ///
     /// \warning SFML cannot preload all the font data in this
     /// function, so the file has to remain accessible until
-    /// the sf::Font object loads a new font or is destroyed.
+    /// the sf::Font object is destroyed.
     ///
     /// \param filename Path of the font file to load
     ///
-    /// \return True if loading succeeded, false if it failed
+    /// \return Font if opening succeeded, `std::nullopt` if it failed
     ///
-    /// \see loadFromMemory, loadFromStream
+    /// \see openFromMemory, openFromStream
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool loadFromFile(const std::filesystem::path& filename);
+    [[nodiscard]] static std::optional<Font> openFromFile(const std::filesystem::path& filename);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Load the font from a file in memory
+    /// \brief Open the font from a file in memory
     ///
     /// The supported font formats are: TrueType, Type 1, CFF,
     /// OpenType, SFNT, X11 PCF, Windows FNT, BDF, PFR and Type 42.
     ///
     /// \warning SFML cannot preload all the font data in this
     /// function, so the buffer pointed by \a data has to remain
-    /// valid until the sf::Font object loads a new font or
-    /// is destroyed.
+    /// valid until the sf::Font object is destroyed.
     ///
     /// \param data        Pointer to the file data in memory
     /// \param sizeInBytes Size of the data to load, in bytes
     ///
-    /// \return True if loading succeeded, false if it failed
+    /// \return Font if opening succeeded, `std::nullopt` if it failed
     ///
-    /// \see loadFromFile, loadFromStream
+    /// \see openFromFile, openFromStream
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool loadFromMemory(const void* data, std::size_t sizeInBytes);
+    [[nodiscard]] static std::optional<Font> openFromMemory(const void* data, std::size_t sizeInBytes);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Load the font from a custom stream
+    /// \brief Open the font from a custom stream
     ///
     /// The supported font formats are: TrueType, Type 1, CFF,
     /// OpenType, SFNT, X11 PCF, Windows FNT, BDF, PFR and Type 42.
-    /// Warning: SFML cannot preload all the font data in this
-    /// function, so the contents of \a stream have to remain
-    /// valid as long as the font is used.
     ///
     /// \warning SFML cannot preload all the font data in this
     /// function, so the stream has to remain accessible until
-    /// the sf::Font object loads a new font or is destroyed.
+    /// the sf::Font object is destroyed.
     ///
     /// \param stream Source stream to read from
     ///
-    /// \return True if loading succeeded, false if it failed
+    /// \return Font if opening succeeded, `std::nullopt` if it failed
     ///
-    /// \see loadFromFile, loadFromMemory
+    /// \see openFromFile, openFromMemory
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool loadFromStream(InputStream& stream);
+    [[nodiscard]] static std::optional<Font> openFromStream(InputStream& stream);
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the font information
@@ -143,7 +140,7 @@ public:
     /// \return A structure that holds the font information
     ///
     ////////////////////////////////////////////////////////////
-    const Info& getInfo() const;
+    [[nodiscard]] const Info& getInfo() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Retrieve a glyph of the font
@@ -167,7 +164,10 @@ public:
     /// \return The glyph corresponding to \a codePoint and \a characterSize
     ///
     ////////////////////////////////////////////////////////////
-    const Glyph& getGlyph(std::uint32_t codePoint, unsigned int characterSize, bool bold, float outlineThickness = 0) const;
+    [[nodiscard]] const Glyph& getGlyph(std::uint32_t codePoint,
+                                        unsigned int  characterSize,
+                                        bool          bold,
+                                        float         outlineThickness = 0) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Determine if this font has a glyph representing the requested code point
@@ -185,7 +185,7 @@ public:
     /// \return True if the codepoint has a glyph representation, false otherwise
     ///
     ////////////////////////////////////////////////////////////
-    bool hasGlyph(std::uint32_t codePoint) const;
+    [[nodiscard]] bool hasGlyph(std::uint32_t codePoint) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the kerning offset of two glyphs
@@ -199,11 +199,12 @@ public:
     /// \param first         Unicode code point of the first character
     /// \param second        Unicode code point of the second character
     /// \param characterSize Reference character size
+    /// \param bold          Retrieve the bold version or the regular one?
     ///
     /// \return Kerning value for \a first and \a second, in pixels
     ///
     ////////////////////////////////////////////////////////////
-    float getKerning(std::uint32_t first, std::uint32_t second, unsigned int characterSize, bool bold = false) const;
+    [[nodiscard]] float getKerning(std::uint32_t first, std::uint32_t second, unsigned int characterSize, bool bold = false) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the line spacing
@@ -216,7 +217,7 @@ public:
     /// \return Line spacing, in pixels
     ///
     ////////////////////////////////////////////////////////////
-    float getLineSpacing(unsigned int characterSize) const;
+    [[nodiscard]] float getLineSpacing(unsigned int characterSize) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the position of the underline
@@ -231,7 +232,7 @@ public:
     /// \see getUnderlineThickness
     ///
     ////////////////////////////////////////////////////////////
-    float getUnderlinePosition(unsigned int characterSize) const;
+    [[nodiscard]] float getUnderlinePosition(unsigned int characterSize) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the thickness of the underline
@@ -245,7 +246,7 @@ public:
     /// \see getUnderlinePosition
     ///
     ////////////////////////////////////////////////////////////
-    float getUnderlineThickness(unsigned int characterSize) const;
+    [[nodiscard]] float getUnderlineThickness(unsigned int characterSize) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Retrieve the texture containing the loaded glyphs of a certain size
@@ -259,7 +260,7 @@ public:
     /// \return Texture containing the glyphs of the requested size
     ///
     ////////////////////////////////////////////////////////////
-    const Texture& getTexture(unsigned int characterSize) const;
+    [[nodiscard]] const Texture& getTexture(unsigned int characterSize) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Enable or disable the smooth filter
@@ -285,7 +286,7 @@ public:
     /// \see setSmooth
     ///
     ////////////////////////////////////////////////////////////
-    bool isSmooth() const;
+    [[nodiscard]] bool isSmooth() const;
 
 private:
     ////////////////////////////////////////////////////////////
@@ -314,19 +315,14 @@ private:
     ////////////////////////////////////////////////////////////
     struct Page
     {
-        explicit Page(bool smooth);
+        [[nodiscard]] static std::optional<Page> create(bool smooth);
+        explicit Page(Texture&& texture);
 
         GlyphTable       glyphs;     //!< Table mapping code points to their corresponding glyph
         Texture          texture;    //!< Texture containing the pixels of the glyphs
         unsigned int     nextRow{3}; //!< Y position of the next new row in the texture
         std::vector<Row> rows;       //!< List containing the position of all the existing rows
     };
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Free all the internal resources
-    ///
-    ////////////////////////////////////////////////////////////
-    void cleanup();
 
     ////////////////////////////////////////////////////////////
     /// \brief Find or create the glyphs page corresponding to the given character size
@@ -379,6 +375,12 @@ private:
     using PageTable = std::unordered_map<unsigned int, Page>; //!< Table mapping a character size to its page (texture)
 
     ////////////////////////////////////////////////////////////
+    /// \brief Create a font from font handles and a family name
+    ///
+    ////////////////////////////////////////////////////////////
+    Font(std::shared_ptr<FontHandles>&& fontHandles, std::string&& familyName);
+
+    ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
     std::shared_ptr<FontHandles> m_fontHandles;    //!< Shared information about the internal font instance
@@ -398,11 +400,11 @@ private:
 /// \class sf::Font
 /// \ingroup graphics
 ///
-/// Fonts can be loaded from a file, from memory or from a custom
+/// Fonts can be opened from a file, from memory or from a custom
 /// stream, and supports the most common types of fonts. See
-/// the loadFromFile function for the complete list of supported formats.
+/// the openFromFile function for the complete list of supported formats.
 ///
-/// Once it is loaded, a sf::Font instance provides three
+/// Once it is opened, a sf::Font instance provides three
 /// types of information about the font:
 /// \li Global metrics, such as the line spacing
 /// \li Per-glyph metrics, such as bounding box or kerning
@@ -430,14 +432,8 @@ private:
 ///
 /// Usage example:
 /// \code
-/// // Declare a new font
-/// sf::Font font;
-///
-/// // Load it from a file
-/// if (!font.loadFromFile("arial.ttf"))
-/// {
-///     // error...
-/// }
+/// // Open a new font
+/// const auto font = sf::Font::openFromFile("arial.ttf").value();
 ///
 /// // Create a text which uses our font
 /// sf::Text text1(font);
@@ -450,7 +446,7 @@ private:
 /// text2.setStyle(sf::Text::Italic);
 /// \endcode
 ///
-/// Apart from loading font files, and passing them to instances
+/// Apart from opening font files, and passing them to instances
 /// of sf::Text, you should normally not have to deal directly
 /// with this class. However, it may be useful to access the
 /// font metrics or rasterized glyphs for advanced usage.

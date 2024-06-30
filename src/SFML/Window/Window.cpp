@@ -63,16 +63,21 @@ Window::Window(WindowHandle handle, const ContextSettings& settings)
 
 
 ////////////////////////////////////////////////////////////
-Window::~Window()
-{
-    close();
-}
+Window::~Window() = default;
+
+
+////////////////////////////////////////////////////////////
+Window::Window(Window&&) noexcept = default;
+
+
+////////////////////////////////////////////////////////////
+Window& Window::operator=(Window&&) noexcept = default;
 
 
 ////////////////////////////////////////////////////////////
 void Window::create(VideoMode mode, const String& title, std::uint32_t style, State state)
 {
-    Window::create(mode, title, style, state, ContextSettings());
+    Window::create(mode, title, style, state, ContextSettings{});
 }
 
 
@@ -96,7 +101,7 @@ void Window::create(VideoMode mode, const String& title, std::uint32_t style, St
 ////////////////////////////////////////////////////////////
 void Window::create(WindowHandle handle)
 {
-    Window::create(handle, ContextSettings());
+    Window::create(handle, ContextSettings{});
 }
 
 
@@ -131,7 +136,7 @@ void Window::close()
 ////////////////////////////////////////////////////////////
 const ContextSettings& Window::getSettings() const
 {
-    static constexpr ContextSettings empty(0, 0, 0);
+    static constexpr ContextSettings empty{/* depthBits */ 0, /* stencilBits */ 0, /* antialiasingLevel */ 0};
 
     return m_context ? m_context->getSettings() : empty;
 }
@@ -164,16 +169,12 @@ bool Window::setActive(bool active) const
         {
             return true;
         }
-        else
-        {
-            err() << "Failed to activate the window's context" << std::endl;
-            return false;
-        }
-    }
-    else
-    {
+
+        err() << "Failed to activate the window's context" << std::endl;
         return false;
     }
+
+    return false;
 }
 
 

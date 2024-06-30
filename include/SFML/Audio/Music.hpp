@@ -29,12 +29,11 @@
 ////////////////////////////////////////////////////////////
 #include <SFML/Audio/Export.hpp>
 
-#include <SFML/Audio/InputSoundFile.hpp>
 #include <SFML/Audio/SoundStream.hpp>
 
 #include <filesystem>
-#include <mutex>
-#include <vector>
+#include <memory>
+#include <optional>
 
 #include <cstddef>
 #include <cstdint>
@@ -44,6 +43,7 @@ namespace sf
 {
 class Time;
 class InputStream;
+class InputSoundFile;
 
 ////////////////////////////////////////////////////////////
 /// \brief Streamed music played from an audio file
@@ -73,6 +73,18 @@ public:
     ~Music() override;
 
     ////////////////////////////////////////////////////////////
+    /// \brief Move constructor
+    ///
+    ////////////////////////////////////////////////////////////
+    Music(Music&&) noexcept;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Move assignment
+    ///
+    ////////////////////////////////////////////////////////////
+    Music& operator=(Music&&) noexcept;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Open a music from an audio file
     ///
     /// This function doesn't start playing the music (call play()
@@ -86,12 +98,12 @@ public:
     ///
     /// \param filename Path of the music file to open
     ///
-    /// \return True if loading succeeded, false if it failed
+    /// \return Music if loading succeeded, `std::nullopt` if it failed
     ///
     /// \see openFromMemory, openFromStream
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool openFromFile(const std::filesystem::path& filename);
+    [[nodiscard]] static std::optional<Music> openFromFile(const std::filesystem::path& filename);
 
     ////////////////////////////////////////////////////////////
     /// \brief Open a music from an audio file in memory
@@ -109,12 +121,12 @@ public:
     /// \param data        Pointer to the file data in memory
     /// \param sizeInBytes Size of the data to load, in bytes
     ///
-    /// \return True if loading succeeded, false if it failed
+    /// \return Music if loading succeeded, `std::nullopt` if it failed
     ///
     /// \see openFromFile, openFromStream
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool openFromMemory(const void* data, std::size_t sizeInBytes);
+    [[nodiscard]] static std::optional<Music> openFromMemory(const void* data, std::size_t sizeInBytes);
 
     ////////////////////////////////////////////////////////////
     /// \brief Open a music from an audio file in a custom stream
@@ -130,12 +142,12 @@ public:
     ///
     /// \param stream Source stream to read from
     ///
-    /// \return True if loading succeeded, false if it failed
+    /// \return Music if loading succeeded, `std::nullopt` if it failed
     ///
     /// \see openFromFile, openFromMemory
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool openFromStream(InputStream& stream);
+    [[nodiscard]] static std::optional<Music> openFromStream(InputStream& stream);
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the total duration of the music
@@ -143,7 +155,7 @@ public:
     /// \return Music duration
     ///
     ////////////////////////////////////////////////////////////
-    Time getDuration() const;
+    [[nodiscard]] Time getDuration() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the positions of the of the sound's looping sequence
@@ -160,7 +172,7 @@ public:
     /// \see setLoopPoints
     ///
     ////////////////////////////////////////////////////////////
-    TimeSpan getLoopPoints() const;
+    [[nodiscard]] TimeSpan getLoopPoints() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Sets the beginning and duration of the sound's looping sequence using sf::Time
@@ -213,17 +225,24 @@ protected:
     /// the seek position for a loop. We then determine whether we are looping on a
     /// loop point or the end-of-file, perform the seek, and return the new position.
     ///
-    /// \return The seek position after looping (or -1 if there's no loop)
+    /// \return The seek position after looping (or std::nullopt if there's no loop)
     ///
     ////////////////////////////////////////////////////////////
-    std::int64_t onLoop() override;
+    std::optional<std::uint64_t> onLoop() override;
 
 private:
+    ////////////////////////////////////////////////////////////
+    /// \brief Try opening the music file from an optional input sound file
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] static std::optional<Music> tryOpenFromInputSoundFile(std::optional<InputSoundFile>&& optFile,
+                                                                        const char*                     errorContext);
+
     ////////////////////////////////////////////////////////////
     /// \brief Initialize the internal state after loading a new music
     ///
     ////////////////////////////////////////////////////////////
-    void initialize();
+    explicit Music(InputSoundFile&& file);
 
     ////////////////////////////////////////////////////////////
     /// \brief Helper to convert an sf::Time to a sample position
@@ -233,7 +252,7 @@ private:
     /// \return The number of samples elapsed at the given time
     ///
     ////////////////////////////////////////////////////////////
-    std::uint64_t timeToSamples(Time position) const;
+    [[nodiscard]] std::uint64_t timeToSamples(Time position) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Helper to convert a sample position to an sf::Time
@@ -243,15 +262,13 @@ private:
     /// \return The Time position of the given sample
     ///
     ////////////////////////////////////////////////////////////
-    Time samplesToTime(std::uint64_t samples) const;
+    [[nodiscard]] Time samplesToTime(std::uint64_t samples) const;
 
     ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
-    InputSoundFile            m_file;     //!< The streamed music file
-    std::vector<std::int16_t> m_samples;  //!< Temporary buffer of samples
-    std::recursive_mutex      m_mutex;    //!< Mutex protecting the data
-    Span<std::uint64_t>       m_loopSpan; //!< Loop Range Specifier
+    struct Impl;
+    std::unique_ptr<Impl> m_impl; //!< Implementation details
 };
 
 } // namespace sf
@@ -282,20 +299,14 @@ private:
 ///
 /// Usage example:
 /// \code
-/// // Declare a new music
-/// sf::Music music;
-///
-/// // Open it from an audio file
-/// if (!music.openFromFile("music.ogg"))
-/// {
-///     // error...
-/// }
+/// // Open a music from an audio file
+/// auto music = sf::Music::openFromFile("music.ogg").value();
 ///
 /// // Change some parameters
-/// music.setPosition(0, 1, 10); // change its 3D position
-/// music.setPitch(2);           // increase the pitch
-/// music.setVolume(50);         // reduce the volume
-/// music.setLoop(true);         // make it loop
+/// music.setPosition({0, 1, 10}); // change its 3D position
+/// music.setPitch(2);             // increase the pitch
+/// music.setVolume(50);           // reduce the volume
+/// music.setLoop(true);           // make it loop
 ///
 /// // Play it
 /// music.play();

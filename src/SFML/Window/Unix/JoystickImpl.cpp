@@ -141,7 +141,7 @@ void updatePluggedList(udev_device* udevDevice = nullptr)
                             recordIt->systemPath = syspath ? syspath : "";
                             break;
                         }
-                        else if (std::strstr(action, "remove"))
+                        if (std::strstr(action, "remove"))
                         {
                             recordIt->plugged = false;
                             break;
@@ -208,7 +208,7 @@ void updatePluggedList(udev_device* udevDevice = nullptr)
     }
 
     udev_list_entry* devices = udev_enumerate_get_list_entry(udevEnumerator);
-    udev_list_entry* device;
+    udev_list_entry* device  = nullptr;
 
     udev_list_entry_foreach(device, devices)
     {
@@ -400,14 +400,13 @@ std::string getJoystickName(unsigned int index)
     if (fd >= 0)
     {
         // Get the name
-        char name[128] = {};
-
-        const int result = ioctl(fd, JSIOCGNAME(sizeof(name)), name);
+        std::array<char, 128> name{};
+        const int             result = ioctl(fd, JSIOCGNAME(name.size()), name.data());
 
         ::close(fd);
 
         if (result >= 0)
-            return name;
+            return name.data();
     }
 
     // Fall back to manual USB chain walk via udev
@@ -562,10 +561,8 @@ bool JoystickImpl::open(unsigned int index)
 
             return true;
         }
-        else
-        {
-            err() << "Failed to open joystick " << devnode << ": " << errno << std::endl;
-        }
+
+        err() << "Failed to open joystick " << devnode << ": " << errno << std::endl;
     }
 
     return false;
@@ -589,18 +586,18 @@ JoystickCaps JoystickImpl::getCapabilities() const
         return caps;
 
     // Get the number of buttons
-    char buttonCount;
+    char buttonCount = 0;
     ioctl(m_file, JSIOCGBUTTONS, &buttonCount);
     caps.buttonCount = static_cast<unsigned int>(buttonCount);
     if (caps.buttonCount > Joystick::ButtonCount)
         caps.buttonCount = Joystick::ButtonCount;
 
     // Get the supported axes
-    char axesCount;
+    char axesCount = 0;
     ioctl(m_file, JSIOCGAXES, &axesCount);
     for (int i = 0; i < axesCount; ++i)
     {
-        switch (m_mapping[i])
+        switch (m_mapping[static_cast<std::size_t>(i)])
         {
             // clang-format off
             case ABS_X:        caps.axes[Joystick::Axis::X]    = true; break;
@@ -650,7 +647,7 @@ JoystickState JoystickImpl::JoystickImpl::update()
             {
                 const float value = joyState.value * 100.f / 32767.f;
 
-                if (joyState.number < ABS_MAX + 1)
+                if (joyState.number < m_mapping.size())
                 {
                     switch (m_mapping[joyState.number])
                     {

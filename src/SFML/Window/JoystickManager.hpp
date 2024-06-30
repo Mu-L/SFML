@@ -30,6 +30,8 @@
 #include <SFML/Window/Joystick.hpp>
 #include <SFML/Window/JoystickImpl.hpp>
 
+#include <array>
+
 
 namespace sf::priv
 {
@@ -68,7 +70,7 @@ public:
     /// \return Capabilities of the joystick
     ///
     ////////////////////////////////////////////////////////////
-    const JoystickCaps& getCapabilities(unsigned int joystick) const;
+    [[nodiscard]] const JoystickCaps& getCapabilities(unsigned int joystick) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the current state of an open joystick
@@ -78,7 +80,7 @@ public:
     /// \return Current state of the joystick
     ///
     ////////////////////////////////////////////////////////////
-    const JoystickState& getState(unsigned int joystick) const;
+    [[nodiscard]] const JoystickState& getState(unsigned int joystick) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the identification for an open joystick
@@ -88,7 +90,7 @@ public:
     /// \return Identification for the joystick
     ///
     ////////////////////////////////////////////////////////////
-    const Joystick::Identification& getIdentification(unsigned int joystick) const;
+    [[nodiscard]] const Joystick::Identification& getIdentification(unsigned int joystick) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Update the state of all the joysticks
@@ -124,7 +126,7 @@ private:
     ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
-    Item m_joysticks[Joystick::Count]; //!< Joysticks information and state
+    std::array<Item, Joystick::Count> m_joysticks; //!< Joysticks information and state
 };
 
 } // namespace sf::priv

@@ -7,8 +7,12 @@
 #include <catch2/catch_approx.hpp>
 
 #include <SystemUtil.hpp>
+#include <fstream>
 #include <iomanip>
 #include <limits>
+
+#include <cassert>
+
 
 namespace sf
 {
@@ -58,7 +62,7 @@ template std::ostream& operator<<(std::ostream&, const Vector3<float>&);
 
 bool operator==(const float& lhs, const Approx<float>& rhs)
 {
-    return static_cast<double>(lhs) == Catch::Approx(static_cast<double>(rhs.value)).margin(1e-5);
+    return lhs == Catch::Approx(rhs.value).margin(1e-5);
 }
 
 bool operator==(const sf::Vector2f& lhs, const Approx<sf::Vector2f>& rhs)
@@ -73,5 +77,18 @@ bool operator==(const sf::Vector3f& lhs, const Approx<sf::Vector3f>& rhs)
 
 bool operator==(const sf::Angle& lhs, const Approx<sf::Angle>& rhs)
 {
-    return lhs.asDegrees() == Approx(rhs.value.asDegrees());
+    return lhs.asRadians() == Approx(rhs.value.asRadians());
+}
+
+std::vector<std::byte> loadIntoMemory(const std::filesystem::path& path)
+{
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    assert(file);
+    const auto size = file.tellg();
+    file.seekg(0, std::ios::beg);
+    std::vector<std::byte>       buffer(static_cast<std::size_t>(size));
+    [[maybe_unused]] const auto& result = file.read(reinterpret_cast<char*>(buffer.data()),
+                                                    static_cast<std::streamsize>(size));
+    assert(result);
+    return buffer;
 }

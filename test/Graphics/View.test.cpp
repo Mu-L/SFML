@@ -76,13 +76,13 @@ TEST_CASE("[Graphics] sf::View")
     {
         sf::View view;
         view.setRotation(sf::degrees(-345));
-        CHECK(view.getRotation() == sf::degrees(15));
+        CHECK(view.getRotation() == Approx(sf::degrees(15)));
         CHECK(view.getTransform() ==
               Approx(sf::Transform(0.00193185f, 0.000517638f, -1.22474f, 0.000517638f, -0.00193185f, 0.707107f, 0, 0, 1)));
         CHECK(view.getInverseTransform() ==
               Approx(sf::Transform(482.963f, 129.41f, 500, 129.41f, -482.963f, 500, 0, 0, 1)));
         view.setRotation(sf::degrees(400));
-        CHECK(view.getRotation() == sf::degrees(40));
+        CHECK(view.getRotation() == Approx(sf::degrees(40)));
         CHECK(view.getTransform() ==
               Approx(sf::Transform(0.00153209f, 0.00128558f, -1.40883f, 0.00128558f, -0.00153209f, 0.123257f, 0, 0, 1)));
         CHECK(view.getInverseTransform() ==
@@ -107,24 +107,6 @@ TEST_CASE("[Graphics] sf::View")
         CHECK(view.getViewport() == sf::FloatRect({0, 0}, {1, 1}));
     }
 
-    SECTION("reset()")
-    {
-        sf::View view;
-        view.setCenter({3.14f, 4.2f});
-        view.setSize({600, 900});
-        view.setRotation(sf::degrees(15));
-        view.setViewport({{150, 250}, {500, 750}});
-        view.setScissor({{0.2f, 0.3f}, {0.4f, 0.5f}});
-        view.reset({{1, 2}, {3, 4}});
-        CHECK(view.getCenter() == sf::Vector2f(2.5f, 4));
-        CHECK(view.getSize() == sf::Vector2f(3, 4));
-        CHECK(view.getRotation() == sf::Angle::Zero);
-        CHECK(view.getViewport() == sf::FloatRect({150, 250}, {500, 750}));
-        CHECK(view.getScissor() == sf::FloatRect({0.2f, 0.3f}, {0.4f, 0.5f}));
-        CHECK(view.getTransform() == Approx(sf::Transform(0.666667f, 0, -1.66667f, 0, -0.5f, 2, 0, 0, 1)));
-        CHECK(view.getInverseTransform() == Approx(sf::Transform(1.5f, 0, 2.5f, 0, -2, 4, 0, 0, 1)));
-    }
-
     SECTION("move()")
     {
         sf::View view;
@@ -140,7 +122,7 @@ TEST_CASE("[Graphics] sf::View")
         sf::View view;
         view.setRotation(sf::degrees(45));
         view.rotate(sf::degrees(-15));
-        CHECK(view.getRotation() == sf::degrees(30));
+        CHECK(view.getRotation() == Approx(sf::degrees(30)));
         CHECK(view.getTransform() ==
               Approx(sf::Transform(0.00173205f, 0.001f, -1.36603f, 0.001f, -0.00173205f, 0.366025f, 0, 0, 1)));
         CHECK(view.getInverseTransform() == Approx(sf::Transform(433.013f, 250, 500, 250, -433.013f, 500, 0, 0, 1)));

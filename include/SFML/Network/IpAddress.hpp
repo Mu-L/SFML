@@ -56,6 +56,8 @@ public:
     ///
     /// \param address IP address or network name
     ///
+    /// \return Address if provided argument was valid, otherwise `std::nullopt`
+    ///
     ////////////////////////////////////////////////////////////
     [[nodiscard]] static std::optional<IpAddress> resolve(std::string_view address);
 
@@ -101,7 +103,7 @@ public:
     /// \see toInteger
     ///
     ////////////////////////////////////////////////////////////
-    std::string toString() const;
+    [[nodiscard]] std::string toString() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get an integer representation of the address
@@ -117,7 +119,7 @@ public:
     /// \see toString
     ///
     ////////////////////////////////////////////////////////////
-    std::uint32_t toInteger() const;
+    [[nodiscard]] std::uint32_t toInteger() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the computer's local address
@@ -128,12 +130,12 @@ public:
     /// Unlike getPublicAddress, this function is fast and may be
     /// used safely anywhere.
     ///
-    /// \return Local IP address of the computer
+    /// \return Local IP address of the computer on success, `std::nullopt` otherwise
     ///
     /// \see getPublicAddress
     ///
     ////////////////////////////////////////////////////////////
-    static std::optional<IpAddress> getLocalAddress();
+    [[nodiscard]] static std::optional<IpAddress> getLocalAddress();
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the computer's public address
@@ -152,12 +154,12 @@ public:
     ///
     /// \param timeout Maximum time to wait
     ///
-    /// \return Public IP address of the computer
+    /// \return Public IP address of the computer on success, `std::nullopt` otherwise
     ///
     /// \see getLocalAddress
     ///
     ////////////////////////////////////////////////////////////
-    static std::optional<IpAddress> getPublicAddress(Time timeout = Time::Zero);
+    [[nodiscard]] static std::optional<IpAddress> getPublicAddress(Time timeout = Time::Zero);
 
     ////////////////////////////////////////////////////////////
     // Static member data
@@ -186,7 +188,7 @@ private:
 /// \return True if both addresses are equal
 ///
 ////////////////////////////////////////////////////////////
-SFML_NETWORK_API bool operator==(const IpAddress& left, const IpAddress& right);
+[[nodiscard]] SFML_NETWORK_API bool operator==(const IpAddress& left, const IpAddress& right);
 
 ////////////////////////////////////////////////////////////
 /// \brief Overload of != operator to compare two IP addresses
@@ -197,7 +199,7 @@ SFML_NETWORK_API bool operator==(const IpAddress& left, const IpAddress& right);
 /// \return True if both addresses are different
 ///
 ////////////////////////////////////////////////////////////
-SFML_NETWORK_API bool operator!=(const IpAddress& left, const IpAddress& right);
+[[nodiscard]] SFML_NETWORK_API bool operator!=(const IpAddress& left, const IpAddress& right);
 
 ////////////////////////////////////////////////////////////
 /// \brief Overload of < operator to compare two IP addresses
@@ -208,7 +210,7 @@ SFML_NETWORK_API bool operator!=(const IpAddress& left, const IpAddress& right);
 /// \return True if \a left is lesser than \a right
 ///
 ////////////////////////////////////////////////////////////
-SFML_NETWORK_API bool operator<(const IpAddress& left, const IpAddress& right);
+[[nodiscard]] SFML_NETWORK_API bool operator<(const IpAddress& left, const IpAddress& right);
 
 ////////////////////////////////////////////////////////////
 /// \brief Overload of > operator to compare two IP addresses
@@ -219,7 +221,7 @@ SFML_NETWORK_API bool operator<(const IpAddress& left, const IpAddress& right);
 /// \return True if \a left is greater than \a right
 ///
 ////////////////////////////////////////////////////////////
-SFML_NETWORK_API bool operator>(const IpAddress& left, const IpAddress& right);
+[[nodiscard]] SFML_NETWORK_API bool operator>(const IpAddress& left, const IpAddress& right);
 
 ////////////////////////////////////////////////////////////
 /// \brief Overload of <= operator to compare two IP addresses
@@ -230,7 +232,7 @@ SFML_NETWORK_API bool operator>(const IpAddress& left, const IpAddress& right);
 /// \return True if \a left is lesser or equal than \a right
 ///
 ////////////////////////////////////////////////////////////
-SFML_NETWORK_API bool operator<=(const IpAddress& left, const IpAddress& right);
+[[nodiscard]] SFML_NETWORK_API bool operator<=(const IpAddress& left, const IpAddress& right);
 
 ////////////////////////////////////////////////////////////
 /// \brief Overload of >= operator to compare two IP addresses
@@ -241,7 +243,7 @@ SFML_NETWORK_API bool operator<=(const IpAddress& left, const IpAddress& right);
 /// \return True if \a left is greater or equal than \a right
 ///
 ////////////////////////////////////////////////////////////
-SFML_NETWORK_API bool operator>=(const IpAddress& left, const IpAddress& right);
+[[nodiscard]] SFML_NETWORK_API bool operator>=(const IpAddress& left, const IpAddress& right);
 
 ////////////////////////////////////////////////////////////
 /// \brief Overload of >> operator to extract an IP address from an input stream

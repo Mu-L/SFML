@@ -16,7 +16,7 @@ public:
     }
 
 private:
-    void draw(sf::RenderTarget&, const sf::RenderStates&) const override
+    void draw(sf::RenderTarget&, sf::RenderStates) const override
     {
         ++m_callCount;
     }
@@ -46,8 +46,7 @@ TEST_CASE("[Graphics] sf::Drawable", runDisplayTests())
     SECTION("draw()")
     {
         const DrawableTest drawableTest;
-        sf::RenderTexture  renderTexture;
-        CHECK(renderTexture.create({32, 32}));
+        auto               renderTexture = sf::RenderTexture::create({32, 32}).value();
         CHECK(drawableTest.callCount() == 0);
         renderTexture.draw(drawableTest);
         CHECK(drawableTest.callCount() == 1);

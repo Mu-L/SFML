@@ -52,10 +52,13 @@
 
 #include <SFML/Audio/SoundFileReaderMp3.hpp>
 
+#include <SFML/System/Err.hpp>
 #include <SFML/System/InputStream.hpp>
 
 #include <algorithm>
+#include <ostream>
 
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 
@@ -65,14 +68,14 @@ namespace
 std::size_t readCallback(void* ptr, std::size_t size, void* data)
 {
     auto* stream = static_cast<sf::InputStream*>(data);
-    return static_cast<std::size_t>(stream->read(ptr, static_cast<std::int64_t>(size)));
+    return stream->read(ptr, size).value_or(-1);
 }
 
 int seekCallback(std::uint64_t offset, void* data)
 {
-    auto*              stream   = static_cast<sf::InputStream*>(data);
-    const std::int64_t position = stream->seek(static_cast<std::int64_t>(offset));
-    return position < 0 ? -1 : 0;
+    auto*               stream   = static_cast<sf::InputStream*>(data);
+    const std::optional position = stream->seek(static_cast<std::size_t>(offset));
+    return position ? 0 : -1;
 }
 
 bool hasValidId3Tag(const std::uint8_t* header)
@@ -89,7 +92,7 @@ bool SoundFileReaderMp3::check(InputStream& stream)
 {
     std::uint8_t header[10];
 
-    if (static_cast<std::size_t>(stream.read(header, static_cast<std::int64_t>(sizeof(header)))) < sizeof(header))
+    if (stream.read(header, sizeof(header)) != sizeof(header))
         return false;
 
     if (hasValidId3Tag(header))
@@ -135,6 +138,24 @@ std::optional<SoundFileReader::Info> SoundFileReaderMp3::open(InputStream& strea
     info.sampleRate   = static_cast<unsigned int>(m_decoder.info.hz);
     info.sampleCount  = m_decoder.samples;
 
+    // MP3 only supports mono/stereo channels
+    switch (info.channelCount)
+    {
+        case 0:
+            err() << "No channels in MP3 file" << std::endl;
+            break;
+        case 1:
+            info.channelMap = {SoundChannel::Mono};
+            break;
+        case 2:
+            info.channelMap = {SoundChannel::SideLeft, SoundChannel::SideRight};
+            break;
+        default:
+            err() << "MP3 files with more than 2 channels not supported" << std::endl;
+            assert(false);
+            break;
+    }
+
     m_numSamples = info.sampleCount;
     return info;
 }
@@ -152,7 +173,7 @@ void SoundFileReaderMp3::seek(std::uint64_t sampleOffset)
 std::uint64_t SoundFileReaderMp3::read(std::int16_t* samples, std::uint64_t maxCount)
 {
     std::uint64_t toRead = std::min(maxCount, m_numSamples - m_position);
-    toRead = static_cast<std::uint64_t>(mp3dec_ex_read(&m_decoder, samples, static_cast<std::size_t>(toRead)));
+    toRead               = std::uint64_t{mp3dec_ex_read(&m_decoder, samples, static_cast<std::size_t>(toRead))};
     m_position += toRead;
     return toRead;
 }

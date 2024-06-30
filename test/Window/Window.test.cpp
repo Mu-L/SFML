@@ -14,10 +14,11 @@ TEST_CASE("[Window] sf::Window", runDisplayTests())
 {
     SECTION("Type traits")
     {
+        STATIC_CHECK(std::has_virtual_destructor_v<sf::Window>);
         STATIC_CHECK(!std::is_copy_constructible_v<sf::Window>);
         STATIC_CHECK(!std::is_copy_assignable_v<sf::Window>);
-        STATIC_CHECK(!std::is_nothrow_move_constructible_v<sf::Window>);
-        STATIC_CHECK(!std::is_nothrow_move_assignable_v<sf::Window>);
+        STATIC_CHECK(std::is_nothrow_move_constructible_v<sf::Window>);
+        STATIC_CHECK(std::is_nothrow_move_assignable_v<sf::Window>);
     }
 
     SECTION("Construction")
@@ -72,7 +73,7 @@ TEST_CASE("[Window] sf::Window", runDisplayTests())
                                     "Window Tests",
                                     sf::Style::Resize,
                                     sf::State::Windowed,
-                                    sf::ContextSettings(1, 1, 1));
+                                    sf::ContextSettings{/* depthBits*/ 1, /* stencilBits */ 1, /* antialiasingLevel */ 1});
             CHECK(window.isOpen());
             CHECK(window.getSize() == sf::Vector2u(360, 240));
             CHECK(window.getNativeHandle() != sf::WindowHandle());
@@ -95,7 +96,7 @@ TEST_CASE("[Window] sf::Window", runDisplayTests())
             const sf::Window window(sf::VideoMode({360, 240}),
                                     "Window Tests",
                                     sf::State::Windowed,
-                                    sf::ContextSettings(1, 1, 1));
+                                    sf::ContextSettings{/* depthBits*/ 1, /* stencilBits */ 1, /* antialiasingLevel */ 1});
             CHECK(window.isOpen());
             CHECK(window.getSize() == sf::Vector2u(360, 240));
             CHECK(window.getNativeHandle() != sf::WindowHandle());
@@ -133,7 +134,7 @@ TEST_CASE("[Window] sf::Window", runDisplayTests())
                           "Window Tests",
                           sf::Style::Resize,
                           sf::State::Windowed,
-                          sf::ContextSettings(1, 1, 1));
+                          sf::ContextSettings{/* depthBits*/ 1, /* stencilBits */ 1, /* antialiasingLevel */ 1});
             CHECK(window.isOpen());
             CHECK(window.getSize() == sf::Vector2u(240, 360));
             CHECK(window.getNativeHandle() != sf::WindowHandle());

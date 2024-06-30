@@ -27,29 +27,27 @@
 ////////////////////////////////////////////////////////////
 #include <SFML/System/MemoryInputStream.hpp>
 
+#include <algorithm>
+
+#include <cassert>
 #include <cstring>
 
 
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-void MemoryInputStream::open(const void* data, std::size_t sizeInBytes)
+MemoryInputStream::MemoryInputStream(const void* data, std::size_t sizeInBytes) :
+m_data(static_cast<const std::byte*>(data)),
+m_size(sizeInBytes)
 {
-    m_data   = static_cast<const std::byte*>(data);
-    m_size   = static_cast<std::int64_t>(sizeInBytes);
-    m_offset = 0;
+    assert(m_data && "MemoryInputStream must be initialized with non-null data");
 }
 
 
 ////////////////////////////////////////////////////////////
-std::int64_t MemoryInputStream::read(void* data, std::int64_t size)
+std::optional<std::size_t> MemoryInputStream::read(void* data, std::size_t size)
 {
-    if (!m_data)
-        return -1;
-
-    const std::int64_t endPosition = m_offset + size;
-    const std::int64_t count       = endPosition <= m_size ? size : m_size - m_offset;
-
+    const std::size_t count = std::min(size, m_size - m_offset);
     if (count > 0)
     {
         std::memcpy(data, m_data + m_offset, static_cast<std::size_t>(count));
@@ -61,32 +59,23 @@ std::int64_t MemoryInputStream::read(void* data, std::int64_t size)
 
 
 ////////////////////////////////////////////////////////////
-std::int64_t MemoryInputStream::seek(std::int64_t position)
+std::optional<std::size_t> MemoryInputStream::seek(std::size_t position)
 {
-    if (!m_data)
-        return -1;
-
     m_offset = position < m_size ? position : m_size;
     return m_offset;
 }
 
 
 ////////////////////////////////////////////////////////////
-std::int64_t MemoryInputStream::tell()
+std::optional<std::size_t> MemoryInputStream::tell()
 {
-    if (!m_data)
-        return -1;
-
     return m_offset;
 }
 
 
 ////////////////////////////////////////////////////////////
-std::int64_t MemoryInputStream::getSize()
+std::optional<std::size_t> MemoryInputStream::getSize()
 {
-    if (!m_data)
-        return -1;
-
     return m_size;
 }
 

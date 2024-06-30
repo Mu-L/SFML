@@ -135,7 +135,7 @@ public:
     /// \return Size in pixels
     ///
     ////////////////////////////////////////////////////////////
-    Vector2u getSize() const override;
+    [[nodiscard]] Vector2u getSize() const override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the window's icon
@@ -158,7 +158,7 @@ public:
     /// \return True if the window use sRGB encoding, false otherwise
     ///
     ////////////////////////////////////////////////////////////
-    bool isSrgb() const override;
+    [[nodiscard]] bool isSrgb() const override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Activate or deactivate the window as the current target
@@ -237,10 +237,10 @@ private:
 /// while (window.isOpen())
 /// {
 ///    // Event processing
-///    for (sf::Event event; window.pollEvent(event);)
+///    while (const std::optional event = window.pollEvent())
 ///    {
 ///        // Request for closing the window
-///        if (event.type == sf::Event::Closed)
+///        if (event->is<sf::Event::Closed>())
 ///            window.close();
 ///    }
 ///
@@ -266,17 +266,9 @@ private:
 /// sf::RenderWindow window(sf::VideoMode({800, 600}), "SFML OpenGL");
 ///
 /// // Create a sprite and a text to display
-/// sf::Texture texture;
-/// if (!texture.loadFromFile("circle.png"))
-/// {
-///     // error...
-/// }
+/// const auto texture = sf::Texture::loadFromFile("circle.png").value();
 /// sf::Sprite sprite(texture);
-/// sf::Font font;
-/// if (!font.loadFromFile("arial.ttf"))
-/// {
-///     // error...
-/// }
+/// const auto font = sf::Font::openFromFile("arial.ttf").value();
 /// sf::Text text(font);
 /// ...
 ///

@@ -49,15 +49,11 @@ int main()
     window.setVerticalSyncEnabled(true);
 
     // Load the sounds used in the game
-    sf::SoundBuffer ballSoundBuffer;
-    if (!ballSoundBuffer.loadFromFile(resourcesDir() / "ball.wav"))
-        return EXIT_FAILURE;
-    sf::Sound ballSound(ballSoundBuffer);
+    const auto ballSoundBuffer = sf::SoundBuffer::loadFromFile(resourcesDir() / "ball.wav").value();
+    sf::Sound  ballSound(ballSoundBuffer);
 
     // Create the SFML logo texture:
-    sf::Texture sfmlLogoTexture;
-    if (!sfmlLogoTexture.loadFromFile(resourcesDir() / "sfml_logo.png"))
-        return EXIT_FAILURE;
+    const auto sfmlLogoTexture = sf::Texture::loadFromFile(resourcesDir() / "sfml_logo.png").value();
     sf::Sprite sfmlLogo(sfmlLogoTexture);
     sfmlLogo.setPosition({170.f, 50.f});
 
@@ -85,10 +81,8 @@ int main()
     ball.setFillColor(sf::Color::White);
     ball.setOrigin({ballRadius / 2.f, ballRadius / 2.f});
 
-    // Load the text font
-    sf::Font font;
-    if (!font.loadFromFile(resourcesDir() / "tuffy.ttf"))
-        return EXIT_FAILURE;
+    // Open the text font
+    const auto font = sf::Font::openFromFile(resourcesDir() / "tuffy.ttf").value();
 
     // Initialize the pause message
     sf::Text pauseMessage(font);
@@ -115,19 +109,21 @@ int main()
     while (window.isOpen())
     {
         // Handle events
-        for (sf::Event event; window.pollEvent(event);)
+        while (const std::optional event = window.pollEvent())
         {
             // Window closed or escape key pressed: exit
-            if ((event.type == sf::Event::Closed) ||
-                ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::Key::Escape)))
+            if (event->is<sf::Event::Closed>() ||
+                (event->is<sf::Event::KeyPressed>() &&
+                 event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape))
             {
                 window.close();
                 break;
             }
 
             // Space key pressed: play
-            if (((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::Key::Space)) ||
-                (event.type == sf::Event::TouchBegan))
+            if ((event->is<sf::Event::KeyPressed>() &&
+                 event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Space) ||
+                event->is<sf::Event::TouchBegan>())
             {
                 if (!isPlaying)
                 {
@@ -150,7 +146,7 @@ int main()
             }
 
             // Window size changed, adjust view appropriately
-            if (event.type == sf::Event::Resized)
+            if (event->is<sf::Event::Resized>())
             {
                 sf::View view;
                 view.setSize({gameWidth, gameHeight});

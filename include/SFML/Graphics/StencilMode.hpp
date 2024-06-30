@@ -96,7 +96,7 @@ struct SFML_GRAPHICS_API StencilValue
     template <typename T>
     StencilValue(T) = delete;
 
-    unsigned int value = 0u; //!< The stored stencil value
+    unsigned int value{}; //!< The stored stencil value
 };
 
 ////////////////////////////////////////////////////////////
@@ -123,7 +123,7 @@ struct SFML_GRAPHICS_API StencilMode
 /// \return True if stencil modes are equal, false if they are different
 ///
 ////////////////////////////////////////////////////////////
-SFML_GRAPHICS_API bool operator==(const StencilMode& left, const StencilMode& right);
+[[nodiscard]] SFML_GRAPHICS_API bool operator==(const StencilMode& left, const StencilMode& right);
 
 ////////////////////////////////////////////////////////////
 /// \relates StencilMode
@@ -135,7 +135,7 @@ SFML_GRAPHICS_API bool operator==(const StencilMode& left, const StencilMode& ri
 /// \return True if stencil modes are different, false if they are equal
 ///
 ////////////////////////////////////////////////////////////
-SFML_GRAPHICS_API bool operator!=(const StencilMode& left, const StencilMode& right);
+[[nodiscard]] SFML_GRAPHICS_API bool operator!=(const StencilMode& left, const StencilMode& right);
 
 } // namespace sf
 
@@ -214,7 +214,7 @@ SFML_GRAPHICS_API bool operator!=(const StencilMode& left, const StencilMode& ri
 /// Usage example:
 /// \code
 /// // Make sure we create a RenderTarget with a stencil buffer by specifying it via the context settings
-/// sf::RenderWindow window(sf::VideoMode({250, 200}), "Stencil Window", sf::Style::Default, sf::ContextSettings(0, 8));
+/// sf::RenderWindow window(sf::VideoMode({250, 200}), "Stencil Window", sf::Style::Default, sf::ContextSettings{0, 8});
 ///
 /// ...
 ///

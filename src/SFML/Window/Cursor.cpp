@@ -28,9 +28,11 @@
 #include <SFML/Window/Cursor.hpp>
 #include <SFML/Window/CursorImpl.hpp>
 
+#include <SFML/System/Err.hpp>
 #include <SFML/System/Vector2.hpp>
 
 #include <memory>
+#include <ostream>
 
 namespace sf
 {
@@ -54,19 +56,36 @@ Cursor& Cursor::operator=(Cursor&&) noexcept = default;
 
 
 ////////////////////////////////////////////////////////////
-bool Cursor::loadFromPixels(const std::uint8_t* pixels, Vector2u size, Vector2u hotspot)
+std::optional<Cursor> Cursor::loadFromPixels(const std::uint8_t* pixels, Vector2u size, Vector2u hotspot)
 {
     if ((pixels == nullptr) || (size.x == 0) || (size.y == 0))
-        return false;
-    else
-        return m_impl->loadFromPixels(pixels, size, hotspot);
+    {
+        err() << "Failed to load cursor from pixels (invalid arguments)" << std::endl;
+        return std::nullopt;
+    }
+
+    Cursor cursor;
+    if (!cursor.m_impl->loadFromPixels(pixels, size, hotspot))
+    {
+        // Error message generated in called function.
+        return std::nullopt;
+    }
+
+    return cursor;
 }
 
 
 ////////////////////////////////////////////////////////////
-bool Cursor::loadFromSystem(Type type)
+std::optional<Cursor> Cursor::loadFromSystem(Type type)
 {
-    return m_impl->loadFromSystem(type);
+    Cursor cursor;
+    if (!cursor.m_impl->loadFromSystem(type))
+    {
+        // Error message generated in called function.
+        return std::nullopt;
+    }
+
+    return cursor;
 }
 
 

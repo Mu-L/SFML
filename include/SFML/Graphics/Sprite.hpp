@@ -64,7 +64,7 @@ public:
     /// \brief Disallow construction from a temporary texture
     ///
     ////////////////////////////////////////////////////////////
-    explicit Sprite(Texture&& texture) = delete;
+    explicit Sprite(const Texture&& texture) = delete;
 
     ////////////////////////////////////////////////////////////
     /// \brief Construct the sprite from a sub-rectangle of a source texture
@@ -81,7 +81,7 @@ public:
     /// \brief Disallow construction from a temporary texture
     ///
     ////////////////////////////////////////////////////////////
-    Sprite(Texture&& texture, const IntRect& rectangle) = delete;
+    Sprite(const Texture&& texture, const IntRect& rectangle) = delete;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the source texture of the sprite
@@ -108,7 +108,7 @@ public:
     /// \brief Disallow setting from a temporary texture
     ///
     ////////////////////////////////////////////////////////////
-    void setTexture(Texture&& texture, bool resetRect = false) = delete;
+    void setTexture(const Texture&& texture, bool resetRect = false) = delete;
 
     ////////////////////////////////////////////////////////////
     /// \brief Set the sub-rectangle of the texture that the sprite will display
@@ -150,7 +150,7 @@ public:
     /// \see setTexture
     ///
     ////////////////////////////////////////////////////////////
-    const Texture& getTexture() const;
+    [[nodiscard]] const Texture& getTexture() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the sub-rectangle of the texture displayed by the sprite
@@ -160,7 +160,7 @@ public:
     /// \see setTextureRect
     ///
     ////////////////////////////////////////////////////////////
-    const IntRect& getTextureRect() const;
+    [[nodiscard]] const IntRect& getTextureRect() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the global color of the sprite
@@ -170,7 +170,7 @@ public:
     /// \see setColor
     ///
     ////////////////////////////////////////////////////////////
-    const Color& getColor() const;
+    [[nodiscard]] const Color& getColor() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the local bounding rectangle of the entity
@@ -184,7 +184,7 @@ public:
     /// \return Local bounding rectangle of the entity
     ///
     ////////////////////////////////////////////////////////////
-    FloatRect getLocalBounds() const;
+    [[nodiscard]] FloatRect getLocalBounds() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the global bounding rectangle of the entity
@@ -198,7 +198,7 @@ public:
     /// \return Global bounding rectangle of the entity
     ///
     ////////////////////////////////////////////////////////////
-    FloatRect getGlobalBounds() const;
+    [[nodiscard]] FloatRect getGlobalBounds() const;
 
 private:
     ////////////////////////////////////////////////////////////
@@ -208,25 +208,19 @@ private:
     /// \param states Current render states
     ///
     ////////////////////////////////////////////////////////////
-    void draw(RenderTarget& target, const RenderStates& states) const override;
+    void draw(RenderTarget& target, RenderStates states) const override;
 
     ////////////////////////////////////////////////////////////
-    /// \brief Update the vertices' positions
+    /// \brief Update the vertices' positions and texture coordinates
     ///
     ////////////////////////////////////////////////////////////
-    void updatePositions();
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Update the vertices' texture coordinates
-    ///
-    ////////////////////////////////////////////////////////////
-    void updateTexCoords();
+    void updateVertices();
 
     ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
     std::array<Vertex, 4> m_vertices;    //!< Vertices defining the sprite's geometry
-    const Texture*        m_texture{};   //!< Texture of the sprite
+    const Texture*        m_texture;     //!< Texture of the sprite
     IntRect               m_textureRect; //!< Rectangle defining the area of the source texture to display
 };
 
@@ -266,18 +260,14 @@ private:
 ///
 /// Usage example:
 /// \code
-/// // Declare and load a texture
-/// sf::Texture texture;
-/// if (!texture.loadFromFile("texture.png"))
-/// {
-///     // Handle error...
-/// }
+/// // Load a texture
+/// const auto texture = sf::Texture::loadFromFile("texture.png").value();
 ///
 /// // Create a sprite
 /// sf::Sprite sprite(texture);
-/// sprite.setTextureRect(sf::IntRect({10, 10}, {50, 30}));
-/// sprite.setColor(sf::Color(255, 255, 255, 200));
-/// sprite.setPosition(100, 25);
+/// sprite.setTextureRect({{10, 10}, {50, 30}});
+/// sprite.setColor({255, 255, 255, 200});
+/// sprite.setPosition({100.f, 25.f});
 ///
 /// // Draw it
 /// window.draw(sprite);

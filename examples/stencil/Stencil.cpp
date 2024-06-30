@@ -19,7 +19,7 @@ int main()
                             "SFML Stencil",
                             sf::Style::Titlebar | sf::Style::Close,
                             sf::State::Windowed,
-                            sf::ContextSettings(0, 8));
+                            sf::ContextSettings{0 /* depthBits */, 8 /* stencilBits */});
     window.setVerticalSyncEnabled(true);
 
     sf::RectangleShape red({500, 50});
@@ -40,10 +40,10 @@ int main()
     while (window.isOpen())
     {
         // Handle events
-        for (sf::Event event; window.pollEvent(event);)
+        while (const std::optional event = window.pollEvent())
         {
             // Window closed: exit
-            if (event.type == sf::Event::Closed)
+            if (event->is<sf::Event::Closed>())
             {
                 window.close();
                 break;

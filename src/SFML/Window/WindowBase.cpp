@@ -43,16 +43,7 @@
 #include <vector>
 
 #include <cassert>
-
-
-namespace
-{
-// A nested named namespace is used here to allow unity builds of SFML.
-namespace WindowsBaseImpl
-{
-const sf::WindowBase* fullscreenWindow = nullptr;
-} // namespace WindowsBaseImpl
-} // namespace
+#include <cstdlib>
 
 
 namespace sf
@@ -71,7 +62,7 @@ WindowBase::WindowBase(VideoMode mode, const String& title, std::uint32_t style,
 ////////////////////////////////////////////////////////////
 WindowBase::WindowBase(VideoMode mode, const String& title, State state)
 {
-    WindowBase::create(mode, title, sf::Style::Default, state);
+    WindowBase::create(mode, title, Style::Default, state);
 }
 
 
@@ -83,10 +74,15 @@ WindowBase::WindowBase(WindowHandle handle)
 
 
 ////////////////////////////////////////////////////////////
-WindowBase::~WindowBase()
-{
-    WindowBase::close();
-}
+WindowBase::~WindowBase() = default;
+
+
+////////////////////////////////////////////////////////////
+WindowBase::WindowBase(WindowBase&&) noexcept = default;
+
+
+////////////////////////////////////////////////////////////
+WindowBase& WindowBase::operator=(WindowBase&&) noexcept = default;
 
 
 ////////////////////////////////////////////////////////////
@@ -95,7 +91,17 @@ void WindowBase::create(VideoMode mode, const String& title, std::uint32_t style
     WindowBase::create(mode, style, state);
 
     // Recreate the window implementation
-    m_impl = priv::WindowImpl::create(mode, title, style, state, ContextSettings(0, 0, 0, 0, 0, 0xFFFFFFFF, false));
+    m_impl = priv::WindowImpl::create(mode,
+                                      title,
+                                      style,
+                                      state,
+                                      ContextSettings{/* depthBits */ 0,
+                                                      /* stencilBits */ 0,
+                                                      /* antialiasingLevel */ 0,
+                                                      /* majorVersion */ 0,
+                                                      /* minorVersion */ 0,
+                                                      /* attributeFlags */ 0xFFFFFFFF,
+                                                      /* sRgbCapable */ false});
 
     // Perform common initializations
     initialize();
@@ -121,10 +127,6 @@ void WindowBase::close()
 {
     // Delete the window implementation
     m_impl.reset();
-
-    // Update the fullscreen window
-    if (this == getFullscreenWindow())
-        setFullscreenWindow(nullptr);
 }
 
 
@@ -136,32 +138,36 @@ bool WindowBase::isOpen() const
 
 
 ////////////////////////////////////////////////////////////
-bool WindowBase::pollEvent(Event& event)
+std::optional<Event> WindowBase::pollEvent()
 {
-    if (m_impl && m_impl->popEvent(event, false))
-    {
-        filterEvent(event);
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    std::optional<sf::Event> event; // Use a single local variable for NRVO
+
+    if (m_impl == nullptr)
+        return event; // Empty optional
+
+    event = m_impl->pollEvent();
+
+    if (event.has_value())
+        filterEvent(*event);
+
+    return event;
 }
 
 
 ////////////////////////////////////////////////////////////
-bool WindowBase::waitEvent(Event& event)
+std::optional<Event> WindowBase::waitEvent(Time timeout)
 {
-    if (m_impl && m_impl->popEvent(event, true))
-    {
-        filterEvent(event);
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    std::optional<sf::Event> event; // Use a single local variable for NRVO
+
+    if (m_impl == nullptr)
+        return event; // Empty optional
+
+    event = m_impl->waitEvent(timeout);
+
+    if (event.has_value())
+        filterEvent(*event);
+
+    return event;
 }
 
 
@@ -220,7 +226,7 @@ void WindowBase::setMinimumSize(const std::optional<Vector2u>& minimumSize)
 {
     if (m_impl)
     {
-        [[maybe_unused]] const auto validateMinimumSize = [this, minimumSize]()
+        [[maybe_unused]] const auto validateMinimumSize = [this, minimumSize]
         {
             if (!minimumSize.has_value() || !m_impl->getMaximumSize().has_value())
                 return true;
@@ -239,7 +245,7 @@ void WindowBase::setMaximumSize(const std::optional<Vector2u>& maximumSize)
 {
     if (m_impl)
     {
-        [[maybe_unused]] const auto validateMaxiumSize = [this, maximumSize]()
+        [[maybe_unused]] const auto validateMaxiumSize = [this, maximumSize]
         {
             if (!maximumSize.has_value() || !m_impl->getMinimumSize().has_value())
                 return true;
@@ -370,7 +376,7 @@ void WindowBase::create(VideoMode mode, std::uint32_t& style, State& state)
     if (state == State::Fullscreen)
     {
         // Make sure there's not already a fullscreen window (only one is allowed)
-        if (getFullscreenWindow())
+        if (m_impl->getFullscreenWindow())
         {
             err() << "Creating two fullscreen windows is not allowed, switching to windowed mode" << std::endl;
             state = State::Windowed;
@@ -388,7 +394,7 @@ void WindowBase::create(VideoMode mode, std::uint32_t& style, State& state)
             }
 
             // Update the fullscreen window
-            setFullscreenWindow(this);
+            m_impl->setFullscreenWindow();
         }
     }
 
@@ -409,10 +415,10 @@ void WindowBase::create(VideoMode mode, std::uint32_t& style, State& state)
 void WindowBase::filterEvent(const Event& event)
 {
     // Notify resize events to the derived class
-    if (event.type == Event::Resized)
+    if (const auto* resized = event.getIf<Event::Resized>())
     {
         // Cache the new size
-        m_size = {event.size.width, event.size.height};
+        m_size = resized->size;
 
         // Notify the derived class
         onResize();
@@ -433,20 +439,6 @@ void WindowBase::initialize()
 
     // Notify the derived class
     onCreate();
-}
-
-
-////////////////////////////////////////////////////////////
-const WindowBase* WindowBase::getFullscreenWindow()
-{
-    return WindowsBaseImpl::fullscreenWindow;
-}
-
-
-////////////////////////////////////////////////////////////
-void WindowBase::setFullscreenWindow(const WindowBase* window)
-{
-    WindowsBaseImpl::fullscreenWindow = window;
 }
 
 } // namespace sf

@@ -33,6 +33,8 @@
 
 #include <SFML/System/Vector2.hpp>
 
+#include <array>
+
 
 namespace sf
 {
@@ -84,7 +86,7 @@ public:
     /// \return Pointer to a 4x4 matrix
     ///
     ////////////////////////////////////////////////////////////
-    constexpr const float* getMatrix() const;
+    [[nodiscard]] constexpr const float* getMatrix() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Return the inverse of the transform
@@ -95,7 +97,7 @@ public:
     /// \return A new transform which is the inverse of self
     ///
     ////////////////////////////////////////////////////////////
-    constexpr Transform getInverse() const;
+    [[nodiscard]] constexpr Transform getInverse() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Transform a 2D point
@@ -111,7 +113,7 @@ public:
     /// \return Transformed point
     ///
     ////////////////////////////////////////////////////////////
-    constexpr Vector2f transformPoint(const Vector2f& point) const;
+    [[nodiscard]] constexpr Vector2f transformPoint(const Vector2f& point) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Transform a rectangle
@@ -127,7 +129,7 @@ public:
     /// \return Transformed rectangle
     ///
     ////////////////////////////////////////////////////////////
-    constexpr FloatRect transformRect(const FloatRect& rectangle) const;
+    [[nodiscard]] constexpr FloatRect transformRect(const FloatRect& rectangle) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Combine the current transform with another one
@@ -267,10 +269,10 @@ private:
     // Member data
     ////////////////////////////////////////////////////////////
     // clang-format off
-    float m_matrix[16]{1.f, 0.f, 0.f, 0.f,
-                       0.f, 1.f, 0.f, 0.f,
-                       0.f, 0.f, 1.f, 0.f,
-                       0.f, 0.f, 0.f, 1.f}; //!< 4x4 matrix defining the transformation
+    std::array<float, 16> m_matrix{1.f, 0.f, 0.f, 0.f,
+                                   0.f, 1.f, 0.f, 0.f,
+                                   0.f, 0.f, 1.f, 0.f,
+                                   0.f, 0.f, 0.f, 1.f}; //!< 4x4 matrix defining the transformation
     // clang-format off
 };
 
@@ -286,7 +288,7 @@ private:
 /// \return New combined transform
 ///
 ////////////////////////////////////////////////////////////
-constexpr Transform operator*(const Transform& left, const Transform& right);
+[[nodiscard]] constexpr Transform operator*(const Transform& left, const Transform& right);
 
 ////////////////////////////////////////////////////////////
 /// \relates sf::Transform
@@ -314,7 +316,7 @@ constexpr Transform& operator*=(Transform& left, const Transform& right);
 /// \return New transformed point
 ///
 ////////////////////////////////////////////////////////////
-constexpr Vector2f operator*(const Transform& left, const Vector2f& right);
+[[nodiscard]] constexpr Vector2f operator*(const Transform& left, const Vector2f& right);
 
 ////////////////////////////////////////////////////////////
 /// \relates sf::Transform

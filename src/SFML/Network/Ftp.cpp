@@ -382,7 +382,7 @@ Ftp::Response Ftp::getResponse()
     {
         // Receive the response from the server
         char        buffer[1024];
-        std::size_t length;
+        std::size_t length = 0;
 
         if (m_receiveBuffer.empty())
         {
@@ -401,11 +401,11 @@ Ftp::Response Ftp::getResponse()
         while (in)
         {
             // Try to extract the code
-            unsigned int code;
+            unsigned int code = 0;
             if (in >> code)
             {
                 // Extract the separator
-                char separator;
+                char separator = 0;
                 in.get(separator);
 
                 // The '-' character means a multiline response
@@ -457,25 +457,23 @@ Ftp::Response Ftp::getResponse()
                         // Return the response code and message
                         return Response(static_cast<Response::Status>(code), message);
                     }
-                    else
+
+                    // The line we just read was actually not a response,
+                    // only a new part of the current multiline response
+
+                    // Extract the line
+                    std::string line;
+                    std::getline(in, line);
+
+                    if (!line.empty())
                     {
-                        // The line we just read was actually not a response,
-                        // only a new part of the current multiline response
+                        // Remove the ending '\r' (all lines are terminated by "\r\n")
+                        line.erase(line.length() - 1);
 
-                        // Extract the line
-                        std::string line;
-                        std::getline(in, line);
-
-                        if (!line.empty())
-                        {
-                            // Remove the ending '\r' (all lines are terminated by "\r\n")
-                            line.erase(line.length() - 1);
-
-                            // Append it to the current message
-                            std::ostringstream out;
-                            out << code << separator << line << '\n';
-                            message += out.str();
-                        }
+                        // Append it to the current message
+                        std::ostringstream out;
+                        out << code << separator << line << '\n';
+                        message += out.str();
                     }
                 }
             }
@@ -587,7 +585,7 @@ void Ftp::DataChannel::receive(std::ostream& stream)
 {
     // Receive data
     char        buffer[1024];
-    std::size_t received;
+    std::size_t received = 0;
     while (m_dataSocket.receive(buffer, sizeof(buffer), received) == Socket::Status::Done)
     {
         stream.write(buffer, static_cast<std::streamsize>(received));
@@ -609,7 +607,7 @@ void Ftp::DataChannel::send(std::istream& stream)
 {
     // Send data
     char        buffer[1024];
-    std::size_t count;
+    std::size_t count = 0;
 
     for (;;)
     {

@@ -86,17 +86,13 @@ int main(int argc, char* argv[])
     sf::RenderWindow window(screen, "");
     window.setFramerateLimit(30);
 
-    sf::Texture texture;
-    if (!texture.loadFromFile("image.png"))
-        return EXIT_FAILURE;
+    const auto texture = sf::Texture::loadFromFile("image.png").value();
 
     sf::Sprite image(texture);
     image.setPosition(sf::Vector2f(screen.size) / 2.f);
     image.setOrigin(sf::Vector2f(texture.getSize()) / 2.f);
 
-    sf::Font font;
-    if (!font.loadFromFile("tuffy.ttf"))
-        return EXIT_FAILURE;
+    const auto font = sf::Font::openFromFile("tuffy.ttf").value();
 
     sf::Text text(font, "Tap anywhere to move the logo.", 64);
     text.setFillColor(sf::Color::Black);
@@ -113,48 +109,49 @@ int main(int argc, char* argv[])
 
     while (window.isOpen())
     {
-        for (sf::Event event; active ? window.pollEvent(event) : window.waitEvent(event);)
+        while (const std::optional event = active ? window.pollEvent() : window.waitEvent())
         {
-            switch (event.type)
+            if (event->is<sf::Event::Closed>() ||
+                (event->is<sf::Event::KeyPressed>() &&
+                 event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape))
             {
-                case sf::Event::Closed:
-                    window.close();
-                    break;
-                case sf::Event::KeyPressed:
-                    if (event.key.code == sf::Keyboard::Key::Escape)
-                        window.close();
-                    break;
-                case sf::Event::Resized:
-                    view.setSize(sf::Vector2f(event.size.width, event.size.height));
-                    view.setCenter(sf::Vector2f(event.size.width, event.size.height) / 2.f);
-                    window.setView(view);
-                    break;
-                case sf::Event::LostFocus:
-                    background = sf::Color::Black;
-                    break;
-                case sf::Event::GainedFocus:
-                    background = sf::Color::White;
-                    break;
+                window.close();
+            }
 
-                // On Android MouseLeft/MouseEntered are (for now) triggered,
-                // whenever the app loses or gains focus.
-                case sf::Event::MouseLeft:
-                    active = false;
-                    break;
-                case sf::Event::MouseEntered:
-                    active = true;
-                    break;
-                case sf::Event::TouchBegan:
-                    if (event.touch.finger == 0)
-                    {
-                        image.setPosition({static_cast<float>(event.touch.x), static_cast<float>(event.touch.y)});
+            else if (const auto* resized = event->getIf<sf::Event::Resized>())
+            {
+                const auto size = sf::Vector2f(resized->size);
+                view.setSize(size);
+                view.setCenter(size / 2.f);
+                window.setView(view);
+            }
+            else if (event->is<sf::Event::FocusLost>())
+            {
+                background = sf::Color::Black;
+            }
+            else if (event->is<sf::Event::FocusGained>())
+            {
+                background = sf::Color::White;
+            }
+            // On Android MouseLeft/MouseEntered are (for now) triggered,
+            // whenever the app loses or gains focus.
+            else if (event->is<sf::Event::MouseLeft>())
+            {
+                active = false;
+            }
+            else if (event->is<sf::Event::MouseEntered>())
+            {
+                active = true;
+            }
+            else if (const auto* touchBegan = event->getIf<sf::Event::TouchBegan>())
+            {
+                if (touchBegan->finger == 0)
+                {
+                    image.setPosition(sf::Vector2f(touchBegan->position));
 #if defined(USE_JNI)
-                        vibrate(sf::milliseconds(10));
+                    vibrate(sf::milliseconds(10));
 #endif
-                    }
-                    break;
-                default:
-                    break;
+                }
             }
         }
 

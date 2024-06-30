@@ -234,22 +234,20 @@ void Shape::update()
 
 
 ////////////////////////////////////////////////////////////
-void Shape::draw(RenderTarget& target, const RenderStates& states) const
+void Shape::draw(RenderTarget& target, RenderStates states) const
 {
-    RenderStates statesCopy(states);
-
-    statesCopy.transform *= getTransform();
-    statesCopy.coordinateType = CoordinateType::Pixels;
+    states.transform *= getTransform();
+    states.coordinateType = CoordinateType::Pixels;
 
     // Render the inside
-    statesCopy.texture = m_texture;
-    target.draw(m_vertices, statesCopy);
+    states.texture = m_texture;
+    target.draw(m_vertices, states);
 
     // Render the outline
     if (m_outlineThickness != 0)
     {
-        statesCopy.texture = nullptr;
-        target.draw(m_outlineVertices, statesCopy);
+        states.texture = nullptr;
+        target.draw(m_outlineVertices, states);
     }
 }
 
@@ -267,16 +265,14 @@ void Shape::updateTexCoords()
 {
     const FloatRect convertedTextureRect(m_textureRect);
 
+    // Make sure not to divide by zero when the points are aligned on a vertical or horizontal line
+    const Vector2f safeInsideSize(m_insideBounds.size.x > 0 ? m_insideBounds.size.x : 1.f,
+                                  m_insideBounds.size.y > 0 ? m_insideBounds.size.y : 1.f);
+
     for (std::size_t i = 0; i < m_vertices.getVertexCount(); ++i)
     {
-        const float xratio      = m_insideBounds.width > 0
-                                      ? (m_vertices[i].position.x - m_insideBounds.left) / m_insideBounds.width
-                                      : 0;
-        const float yratio      = m_insideBounds.height > 0
-                                      ? (m_vertices[i].position.y - m_insideBounds.top) / m_insideBounds.height
-                                      : 0;
-        m_vertices[i].texCoords = convertedTextureRect.getPosition() +
-                                  convertedTextureRect.getSize().cwiseMul({xratio, yratio});
+        const Vector2f ratio    = (m_vertices[i].position - m_insideBounds.position).cwiseDiv(safeInsideSize);
+        m_vertices[i].texCoords = convertedTextureRect.position + convertedTextureRect.size.cwiseMul(ratio);
     }
 }
 

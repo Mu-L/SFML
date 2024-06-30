@@ -74,7 +74,7 @@ public:
     /// \return Number of vertices in the array
     ///
     ////////////////////////////////////////////////////////////
-    std::size_t getVertexCount() const;
+    [[nodiscard]] std::size_t getVertexCount() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get a read-write access to a vertex by its index
@@ -90,7 +90,7 @@ public:
     /// \see getVertexCount
     ///
     ////////////////////////////////////////////////////////////
-    Vertex& operator[](std::size_t index);
+    [[nodiscard]] Vertex& operator[](std::size_t index);
 
     ////////////////////////////////////////////////////////////
     /// \brief Get a read-only access to a vertex by its index
@@ -106,7 +106,7 @@ public:
     /// \see getVertexCount
     ///
     ////////////////////////////////////////////////////////////
-    const Vertex& operator[](std::size_t index) const;
+    [[nodiscard]] const Vertex& operator[](std::size_t index) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Clear the vertex array
@@ -162,7 +162,7 @@ public:
     /// \return Primitive type
     ///
     ////////////////////////////////////////////////////////////
-    PrimitiveType getPrimitiveType() const;
+    [[nodiscard]] PrimitiveType getPrimitiveType() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Compute the bounding rectangle of the vertex array
@@ -173,7 +173,7 @@ public:
     /// \return Bounding rectangle of the vertex array
     ///
     ////////////////////////////////////////////////////////////
-    FloatRect getBounds() const;
+    [[nodiscard]] FloatRect getBounds() const;
 
 private:
     ////////////////////////////////////////////////////////////
@@ -183,7 +183,7 @@ private:
     /// \param states Current render states
     ///
     ////////////////////////////////////////////////////////////
-    void draw(RenderTarget& target, const RenderStates& states) const override;
+    void draw(RenderTarget& target, RenderStates states) const override;
 
     ////////////////////////////////////////////////////////////
     // Member data

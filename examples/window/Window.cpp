@@ -141,23 +141,24 @@ int main()
     while (window.isOpen())
     {
         // Process events
-        for (sf::Event event; window.pollEvent(event);)
+        while (const std::optional event = window.pollEvent())
         {
-            // Close window: exit
-            if (event.type == sf::Event::Closed)
+            // Window closed or escape key pressed: exit
+            if (event->is<sf::Event::Closed>() ||
+                (event->is<sf::Event::KeyPressed>() &&
+                 event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape))
+            {
                 window.close();
-
-            // Escape key: exit
-            if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::Key::Escape))
-                window.close();
+            }
 
             // Resize event: adjust the viewport
-            if (event.type == sf::Event::Resized)
+            if (const auto* resized = event->getIf<sf::Event::Resized>())
             {
-                glViewport(0, 0, static_cast<GLsizei>(event.size.width), static_cast<GLsizei>(event.size.height));
+                const auto [width, height] = resized->size;
+                glViewport(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height));
                 glMatrixMode(GL_PROJECTION);
                 glLoadIdentity();
-                const GLfloat newRatio = static_cast<float>(event.size.width) / static_cast<float>(event.size.height);
+                const GLfloat newRatio = static_cast<float>(width) / static_cast<float>(height);
 #ifdef SFML_OPENGL_ES
                 glFrustumf(-newRatio, newRatio, -1.f, 1.f, 1.f, 500.f);
 #else

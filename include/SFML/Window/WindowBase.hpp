@@ -33,6 +33,7 @@
 #include <SFML/Window/WindowEnums.hpp>
 #include <SFML/Window/WindowHandle.hpp>
 
+#include <SFML/System/Time.hpp>
 #include <SFML/System/Vector2.hpp>
 
 #include <memory>
@@ -52,7 +53,7 @@ namespace priv
 class WindowImpl;
 }
 
-struct Event;
+class Event;
 
 ////////////////////////////////////////////////////////////
 /// \brief Window that serves as a base for other windows
@@ -130,6 +131,18 @@ public:
     WindowBase& operator=(const WindowBase&) = delete;
 
     ////////////////////////////////////////////////////////////
+    /// \brief Move constructor
+    ///
+    ////////////////////////////////////////////////////////////
+    WindowBase(WindowBase&&) noexcept;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Move assignment
+    ///
+    ////////////////////////////////////////////////////////////
+    WindowBase& operator=(WindowBase&&) noexcept;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Create (or recreate) the window
     ///
     /// If the window was already created, it closes it first.
@@ -174,58 +187,55 @@ public:
     /// \return True if the window is open, false if it has been closed
     ///
     ////////////////////////////////////////////////////////////
-    bool isOpen() const;
+    [[nodiscard]] bool isOpen() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Pop the next event from the front of the FIFO event queue, if any, and return it
     ///
     /// This function is not blocking: if there's no pending event then
-    /// it will return false and leave \a event unmodified.
-    /// Note that more than one event may be present in the event queue,
-    /// thus you should always call this function in a loop
-    /// to make sure that you process every pending event.
+    /// it will return a `std::nullopt`. Note that more than one event
+    /// may be present in the event queue, thus you should always call
+    /// this function in a loop to make sure that you process every
+    /// pending event.
     /// \code
-    /// for (sf::Event event; window.pollEvent(event);)
+    /// while (const std::optional event = window.pollEvent())
     /// {
     ///    // process event...
     /// }
     /// \endcode
     ///
-    /// \param event Event to be returned
-    ///
-    /// \return True if an event was returned, or false if the event queue was empty
+    /// \return The event, otherwise `std::nullopt` if no events are pending
     ///
     /// \see waitEvent
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool pollEvent(Event& event);
+    [[nodiscard]] std::optional<Event> pollEvent();
 
     ////////////////////////////////////////////////////////////
     /// \brief Wait for an event and return it
     ///
     /// This function is blocking: if there's no pending event then
-    /// it will wait until an event is received.
-    /// After this function returns (and no error occurred),
-    /// the \a event object is always valid and filled properly.
-    /// This function is typically used when you have a thread that
-    /// is dedicated to events handling: you want to make this thread
-    /// sleep as long as no new event is received.
+    /// it will wait until an event is received or until the provided
+    /// timeout elapses. Only if an error or a timeout occurs the
+    /// returned event will be `std::nullopt`.
+    /// This function is typically used when you have a thread that is
+    /// dedicated to events handling: you want to make this thread sleep
+    /// as long as no new event is received.
     /// \code
-    /// sf::Event event;
-    /// if (window.waitEvent(event))
+    /// while (const std::optional event = window.waitEvent())
     /// {
     ///    // process event...
     /// }
     /// \endcode
     ///
-    /// \param event Event to be returned
+    /// \param timeout Maximum time to wait (`Time::Zero` for infinite)
     ///
-    /// \return False if any error occurred
+    /// \return The event, otherwise `std::nullopt` on timeout or if window was closed
     ///
     /// \see pollEvent
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool waitEvent(Event& event);
+    [[nodiscard]] std::optional<Event> waitEvent(Time timeout = Time::Zero);
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the position of the window
@@ -235,7 +245,7 @@ public:
     /// \see setPosition
     ///
     ////////////////////////////////////////////////////////////
-    Vector2i getPosition() const;
+    [[nodiscard]] Vector2i getPosition() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the position of the window on screen
@@ -262,7 +272,7 @@ public:
     /// \see setSize
     ///
     ////////////////////////////////////////////////////////////
-    Vector2u getSize() const;
+    [[nodiscard]] Vector2u getSize() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the size of the rendering region of the window
@@ -428,7 +438,7 @@ public:
     /// \see requestFocus
     ///
     ////////////////////////////////////////////////////////////
-    bool hasFocus() const;
+    [[nodiscard]] bool hasFocus() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the OS-specific handle of the window
@@ -442,7 +452,7 @@ public:
     /// \return System handle of the window
     ///
     ////////////////////////////////////////////////////////////
-    WindowHandle getNativeHandle() const;
+    [[nodiscard]] WindowHandle getNativeHandle() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Create a Vulkan rendering surface
@@ -515,22 +525,6 @@ private:
     void initialize();
 
     ////////////////////////////////////////////////////////////
-    /// \brief Get the fullscreen window
-    ///
-    /// \return The fullscreen window or a null pointer if there is none
-    ///
-    ////////////////////////////////////////////////////////////
-    const WindowBase* getFullscreenWindow();
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Set a window as the fullscreen window
-    ///
-    /// \param window Window to set as fullscreen window
-    ///
-    ////////////////////////////////////////////////////////////
-    void setFullscreenWindow(const WindowBase* window);
-
-    ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
     std::unique_ptr<priv::WindowImpl> m_impl; //!< Platform-specific implementation of the window
@@ -563,10 +557,10 @@ private:
 /// while (window.isOpen())
 /// {
 ///    // Event processing
-///    for (sf::Event event; window.pollEvent(event);)
+///    while (const std::optional event = window.pollEvent())
 ///    {
 ///        // Request for closing the window
-///        if (event.type == sf::Event::Closed)
+///        if (event->is<sf::Event::Closed>())
 ///            window.close();
 ///    }
 ///

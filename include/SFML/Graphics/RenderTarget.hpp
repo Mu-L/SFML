@@ -109,7 +109,7 @@ public:
     /// The specified value is truncated to the bit width of
     /// the current stencil buffer.
     ///
-    /// \param value Stencil value to clear to
+    /// \param stencilValue Stencil value to clear to
     ///
     ////////////////////////////////////////////////////////////
     void clearStencil(StencilValue stencilValue);
@@ -120,8 +120,8 @@ public:
     /// The specified stencil value is truncated to the bit
     /// width of the current stencil buffer.
     ///
-    /// \param color Fill color to use to clear the render target
-    /// \param value Stencil value to clear to
+    /// \param color        Fill color to use to clear the render target
+    /// \param stencilValue Stencil value to clear to
     ///
     ////////////////////////////////////////////////////////////
     void clear(const Color& color, StencilValue stencilValue);
@@ -155,7 +155,7 @@ public:
     /// \see setView, getDefaultView
     ///
     ////////////////////////////////////////////////////////////
-    const View& getView() const;
+    [[nodiscard]] const View& getView() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the default view of the render target
@@ -168,7 +168,7 @@ public:
     /// \see setView, getView
     ///
     ////////////////////////////////////////////////////////////
-    const View& getDefaultView() const;
+    [[nodiscard]] const View& getDefaultView() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the viewport of a view, applied to this render target
@@ -183,7 +183,7 @@ public:
     /// \return Viewport rectangle, expressed in pixels
     ///
     ////////////////////////////////////////////////////////////
-    IntRect getViewport(const View& view) const;
+    [[nodiscard]] IntRect getViewport(const View& view) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the scissor rectangle of a view, applied to this render target
@@ -198,7 +198,7 @@ public:
     /// \return Scissor rectangle, expressed in pixels
     ///
     ////////////////////////////////////////////////////////////
-    IntRect getScissor(const View& view) const;
+    [[nodiscard]] IntRect getScissor(const View& view) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Convert a point from target coordinates to world
@@ -218,7 +218,7 @@ public:
     /// \see mapCoordsToPixel
     ///
     ////////////////////////////////////////////////////////////
-    Vector2f mapPixelToCoords(const Vector2i& point) const;
+    [[nodiscard]] Vector2f mapPixelToCoords(const Vector2i& point) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Convert a point from target coordinates to world coordinates
@@ -249,7 +249,7 @@ public:
     /// \see mapCoordsToPixel
     ///
     ////////////////////////////////////////////////////////////
-    Vector2f mapPixelToCoords(const Vector2i& point, const View& view) const;
+    [[nodiscard]] Vector2f mapPixelToCoords(const Vector2i& point, const View& view) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Convert a point from world coordinates to target
@@ -269,7 +269,7 @@ public:
     /// \see mapPixelToCoords
     ///
     ////////////////////////////////////////////////////////////
-    Vector2i mapCoordsToPixel(const Vector2f& point) const;
+    [[nodiscard]] Vector2i mapCoordsToPixel(const Vector2f& point) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Convert a point from world coordinates to target coordinates
@@ -296,7 +296,7 @@ public:
     /// \see mapPixelToCoords
     ///
     ////////////////////////////////////////////////////////////
-    Vector2i mapCoordsToPixel(const Vector2f& point, const View& view) const;
+    [[nodiscard]] Vector2i mapCoordsToPixel(const Vector2f& point, const View& view) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Draw a drawable object to the render target
@@ -350,7 +350,7 @@ public:
     /// \return Size in pixels
     ///
     ////////////////////////////////////////////////////////////
-    virtual Vector2u getSize() const = 0;
+    [[nodiscard]] virtual Vector2u getSize() const = 0;
 
     ////////////////////////////////////////////////////////////
     /// \brief Tell if the render target will use sRGB encoding when drawing on it
@@ -358,7 +358,7 @@ public:
     /// \return True if the render target use sRGB encoding, false otherwise
     ///
     ////////////////////////////////////////////////////////////
-    virtual bool isSrgb() const;
+    [[nodiscard]] virtual bool isSrgb() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Activate or deactivate the render target for rendering
@@ -547,18 +547,18 @@ private:
     ////////////////////////////////////////////////////////////
     struct StatesCache
     {
-        bool                  enable;                //!< Is the cache enabled?
-        bool                  glStatesSet{};         //!< Are our internal GL states set yet?
-        bool                  viewChanged;           //!< Has the current view changed since last draw?
-        bool                  scissorEnabled;        //!< Is scissor testing enabled?
-        bool                  stencilEnabled;        //!< Is stencil testing enabled?
-        BlendMode             lastBlendMode;         //!< Cached blending mode
-        StencilMode           lastStencilMode;       //!< Cached stencil
-        std::uint64_t         lastTextureId;         //!< Cached texture
-        CoordinateType        lastCoordinateType;    //!< Texture coordinate type
-        bool                  texCoordsArrayEnabled; //!< Is GL_TEXTURE_COORD_ARRAY client state enabled?
-        bool                  useVertexCache;        //!< Did we previously use the vertex cache?
-        std::array<Vertex, 4> vertexCache;           //!< Pre-transformed vertices cache
+        bool                  enable{};                //!< Is the cache enabled?
+        bool                  glStatesSet{};           //!< Are our internal GL states set yet?
+        bool                  viewChanged{};           //!< Has the current view changed since last draw?
+        bool                  scissorEnabled{};        //!< Is scissor testing enabled?
+        bool                  stencilEnabled{};        //!< Is stencil testing enabled?
+        BlendMode             lastBlendMode;           //!< Cached blending mode
+        StencilMode           lastStencilMode;         //!< Cached stencil
+        std::uint64_t         lastTextureId{};         //!< Cached texture
+        CoordinateType        lastCoordinateType{};    //!< Texture coordinate type
+        bool                  texCoordsArrayEnabled{}; //!< Is GL_TEXTURE_COORD_ARRAY client state enabled?
+        bool                  useVertexCache{};        //!< Did we previously use the vertex cache?
+        std::array<Vertex, 4> vertexCache{};           //!< Pre-transformed vertices cache
     };
 
     ////////////////////////////////////////////////////////////

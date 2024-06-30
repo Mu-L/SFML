@@ -26,28 +26,16 @@ int main()
     sf::RenderWindow window(sf::VideoMode({800, 600}), "SFML window");
 
     // Set the Icon
-    sf::Image icon;
-    if (!icon.loadFromFile(resourcePath() / "icon.png"))
-    {
-        return EXIT_FAILURE;
-    }
+    const auto icon = sf::Image::loadFromFile(resourcePath() / "icon.png").value();
     window.setIcon(icon);
 
     // Load a sprite to display
-    sf::Texture texture;
-    if (!texture.loadFromFile(resourcePath() / "background.jpg"))
-    {
-        return EXIT_FAILURE;
-    }
+    const auto texture = sf::Texture::loadFromFile(resourcePath() / "background.jpg").value();
     sf::Sprite sprite(texture);
 
     // Create a graphical text to display
-    sf::Font font;
-    if (!font.loadFromFile(resourcePath() / "tuffy.ttf"))
-    {
-        return EXIT_FAILURE;
-    }
-    sf::Text text(font, "Hello SFML", 50);
+    const auto font = sf::Font::openFromFile(resourcePath() / "tuffy.ttf").value();
+    sf::Text   text(font, "Hello SFML", 50);
     text.setFillColor(sf::Color::Black);
 
     // Load a music to play
@@ -64,16 +52,17 @@ int main()
     while (window.isOpen())
     {
         // Process events
-        for (sf::Event event; window.pollEvent(event);)
+        while (const auto event = window.pollEvent())
         {
             // Close window: exit
-            if (event.type == sf::Event::Closed)
+            if (event.is<sf::Event::Closed>())
             {
                 window.close();
             }
 
             // Escape pressed: exit
-            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Key::Escape)
+            if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>();
+                keyPressed && keyPressed->code == sf::Keyboard::Key::Escape)
             {
                 window.close();
             }

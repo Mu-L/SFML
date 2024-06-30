@@ -58,16 +58,11 @@ int main()
         window.setMaximumSize(sf::Vector2u(1200, 900));
 
         // Create a sprite for the background
-        sf::Texture backgroundTexture;
-        backgroundTexture.setSrgb(sRgb);
-        if (!backgroundTexture.loadFromFile(resourcesDir() / "background.jpg"))
-            return EXIT_FAILURE;
+        const auto       backgroundTexture = sf::Texture::loadFromFile(resourcesDir() / "background.jpg", sRgb).value();
         const sf::Sprite background(backgroundTexture);
 
         // Create some text to draw on top of our OpenGL object
-        sf::Font font;
-        if (!font.loadFromFile(resourcesDir() / "tuffy.ttf"))
-            return EXIT_FAILURE;
+        const auto font = sf::Font::openFromFile(resourcesDir() / "tuffy.ttf").value();
 
         sf::Text text(font, "SFML / OpenGL demo");
         sf::Text sRgbInstructions(font, "Press space to toggle sRGB conversion");
@@ -80,9 +75,7 @@ int main()
         mipmapInstructions.setPosition({200.f, 550.f});
 
         // Load a texture to apply to our 3D cube
-        sf::Texture texture;
-        if (!texture.loadFromFile(resourcesDir() / "logo.png"))
-            return EXIT_FAILURE;
+        auto texture = sf::Texture::loadFromFile(resourcesDir() / "logo.png").value();
 
         // Attempt to generate a mipmap for our cube texture
         // We don't check the return value here since
@@ -208,30 +201,25 @@ int main()
         while (window.isOpen())
         {
             // Process events
-            for (sf::Event event; window.pollEvent(event);)
+            while (const std::optional event = window.pollEvent())
             {
-                // Close window: exit
-                if (event.type == sf::Event::Closed)
-                {
-                    exit = true;
-                    window.close();
-                }
-
-                // Escape key: exit
-                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::Key::Escape))
+                // Window closed or escape key pressed: exit
+                if (event->is<sf::Event::Closed>() ||
+                    (event->is<sf::Event::KeyPressed>() &&
+                     event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape))
                 {
                     exit = true;
                     window.close();
                 }
 
                 // Return key: toggle mipmapping
-                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::Key::Enter))
+                if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>();
+                    keyPressed && keyPressed->code == sf::Keyboard::Key::Enter)
                 {
                     if (mipmapEnabled)
                     {
                         // We simply reload the texture to disable mipmapping
-                        if (!texture.loadFromFile(resourcesDir() / "logo.png"))
-                            return EXIT_FAILURE;
+                        texture = sf::Texture::loadFromFile(resourcesDir() / "logo.png").value();
 
                         mipmapEnabled = false;
                     }
@@ -242,14 +230,15 @@ int main()
                 }
 
                 // Space key: toggle sRGB conversion
-                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::Key::Space))
+                if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>();
+                    keyPressed && keyPressed->code == sf::Keyboard::Key::Space)
                 {
                     sRgb = !sRgb;
                     window.close();
                 }
 
                 // Adjust the viewport when the window is resized
-                if (event.type == sf::Event::Resized)
+                if (const auto* resized = event->getIf<sf::Event::Resized>())
                 {
                     const sf::Vector2u textureSize = backgroundTexture.getSize();
 
@@ -260,10 +249,11 @@ int main()
                         return EXIT_FAILURE;
                     }
 
-                    glViewport(0, 0, static_cast<GLsizei>(event.size.width), static_cast<GLsizei>(event.size.height));
+                    const auto [width, height] = resized->size;
+                    glViewport(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height));
                     glMatrixMode(GL_PROJECTION);
                     glLoadIdentity();
-                    const GLfloat newRatio = static_cast<float>(event.size.width) / static_cast<float>(event.size.height);
+                    const GLfloat newRatio = static_cast<float>(width) / static_cast<float>(height);
 #ifdef SFML_OPENGL_ES
                     glFrustumf(-newRatio, newRatio, -1.f, 1.f, 1.f, 500.f);
 #else

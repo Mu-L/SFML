@@ -138,7 +138,7 @@ public:
     /// \return True if available, false if unavailable
     ///
     ////////////////////////////////////////////////////////////
-    static bool isExtensionAvailable(const char* name);
+    static bool isExtensionAvailable(std::string_view name);
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the address of an OpenGL function
@@ -197,7 +197,7 @@ public:
     /// \return Structure containing the settings
     ///
     ////////////////////////////////////////////////////////////
-    const ContextSettings& getSettings() const;
+    [[nodiscard]] const ContextSettings& getSettings() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Activate or deactivate the context as the current target for rendering

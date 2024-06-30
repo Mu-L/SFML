@@ -31,6 +31,7 @@
 #include <SFML/System/InputStream.hpp>
 #include <SFML/System/Utils.hpp>
 #ifdef SFML_SYSTEM_ANDROID
+#include <SFML/System/Android/Activity.hpp>
 #include <SFML/System/Android/ResourceStream.hpp>
 #endif
 
@@ -54,14 +55,15 @@ namespace
 // stb_image callbacks that operate on a sf::InputStream
 int read(void* user, char* data, int size)
 {
-    auto& stream = *static_cast<sf::InputStream*>(user);
-    return static_cast<int>(stream.read(data, size));
+    auto&               stream = *static_cast<sf::InputStream*>(user);
+    const std::optional count  = stream.read(data, static_cast<std::size_t>(size));
+    return count ? static_cast<int>(*count) : -1;
 }
 
 void skip(void* user, int size)
 {
     auto& stream = *static_cast<sf::InputStream*>(user);
-    if (stream.seek(stream.tell() + size) == -1)
+    if (!stream.seek(stream.tell().value() + static_cast<std::size_t>(size)).has_value())
         sf::err() << "Failed to seek image loader input stream" << std::endl;
 }
 
@@ -94,7 +96,7 @@ using StbPtr = std::unique_ptr<stbi_uc, StbDeleter>;
 namespace sf
 {
 ////////////////////////////////////////////////////////////
-void Image::create(const Vector2u& size, const Color& color)
+Image::Image(const Vector2u& size, const Color& color)
 {
     if (size.x && size.y)
     {
@@ -130,7 +132,7 @@ void Image::create(const Vector2u& size, const Color& color)
 
 
 ////////////////////////////////////////////////////////////
-void Image::create(const Vector2u& size, const std::uint8_t* pixels)
+Image::Image(const Vector2u& size, const std::uint8_t* pixels)
 {
     if (pixels && size.x && size.y)
     {
@@ -155,12 +157,23 @@ void Image::create(const Vector2u& size, const std::uint8_t* pixels)
 
 
 ////////////////////////////////////////////////////////////
-bool Image::loadFromFile(const std::filesystem::path& filename)
+Image::Image(Vector2u size, std::vector<std::uint8_t>&& pixels) : m_size(size), m_pixels(std::move(pixels))
 {
-#ifndef SFML_SYSTEM_ANDROID
+}
 
-    // Clear the array (just in case)
-    m_pixels.clear();
+
+////////////////////////////////////////////////////////////
+std::optional<Image> Image::loadFromFile(const std::filesystem::path& filename)
+{
+#ifdef SFML_SYSTEM_ANDROID
+
+    if (priv::getActivityStatesPtr() != nullptr)
+    {
+        priv::ResourceStream stream(filename);
+        return loadFromStream(stream);
+    }
+
+#endif
 
     // Load the image and get a pointer to the pixels in memory
     int        width    = 0;
@@ -170,41 +183,24 @@ bool Image::loadFromFile(const std::filesystem::path& filename)
 
     if (ptr)
     {
-        // Assign the image properties
-        m_size = Vector2u(Vector2i(width, height));
-
-        // Copy the loaded pixels to the pixel buffer
-        m_pixels.assign(ptr.get(), ptr.get() + width * height * 4);
-
-        return true;
-    }
-    else
-    {
-        // Error, failed to load the image
-        err() << "Failed to load image\n"
-              << formatDebugPathInfo(filename) << "\nReason: " << stbi_failure_reason() << std::endl;
-
-        return false;
+        return Image(Vector2u(Vector2i(width, height)), {ptr.get(), ptr.get() + width * height * 4});
     }
 
-#else
 
-    priv::ResourceStream stream(filename);
-    return loadFromStream(stream);
+    // Error, failed to load the image
+    err() << "Failed to load image\n"
+          << formatDebugPathInfo(filename) << "\nReason: " << stbi_failure_reason() << std::endl;
 
-#endif
+    return std::nullopt;
 }
 
 
 ////////////////////////////////////////////////////////////
-bool Image::loadFromMemory(const void* data, std::size_t size)
+std::optional<Image> Image::loadFromMemory(const void* data, std::size_t size)
 {
     // Check input parameters
     if (data && size)
     {
-        // Clear the array (just in case)
-        m_pixels.clear();
-
         // Load the image and get a pointer to the pixels in memory
         int         width    = 0;
         int         height   = 0;
@@ -215,41 +211,28 @@ bool Image::loadFromMemory(const void* data, std::size_t size)
 
         if (ptr)
         {
-            // Assign the image properties
-            m_size = Vector2u(Vector2i(width, height));
-
-            // Copy the loaded pixels to the pixel buffer
-            m_pixels.assign(ptr.get(), ptr.get() + width * height * 4);
-
-            return true;
+            return Image(Vector2u(Vector2i(width, height)), {ptr.get(), ptr.get() + width * height * 4});
         }
-        else
-        {
-            // Error, failed to load the image
-            err() << "Failed to load image from memory. Reason: " << stbi_failure_reason() << std::endl;
 
-            return false;
-        }
+        // Error, failed to load the image
+        err() << "Failed to load image from memory. Reason: " << stbi_failure_reason() << std::endl;
+
+        return std::nullopt;
     }
-    else
-    {
-        err() << "Failed to load image from memory, no data provided" << std::endl;
-        return false;
-    }
+
+    err() << "Failed to load image from memory, no data provided" << std::endl;
+    return std::nullopt;
 }
 
 
 ////////////////////////////////////////////////////////////
-bool Image::loadFromStream(InputStream& stream)
+std::optional<Image> Image::loadFromStream(InputStream& stream)
 {
-    // Clear the array (just in case)
-    m_pixels.clear();
-
     // Make sure that the stream's reading position is at the beginning
-    if (stream.seek(0) == -1)
+    if (!stream.seek(0).has_value())
     {
         err() << "Failed to seek image stream" << std::endl;
-        return false;
+        return std::nullopt;
     }
 
     // Setup the stb_image callbacks
@@ -266,20 +249,13 @@ bool Image::loadFromStream(InputStream& stream)
 
     if (ptr)
     {
-        // Assign the image properties
-        m_size = Vector2u(Vector2i(width, height));
-
-        // Copy the loaded pixels to the pixel buffer
-        m_pixels.assign(ptr.get(), ptr.get() + width * height * 4);
-
-        return true;
+        return Image(Vector2u(Vector2i(width, height)), {ptr.get(), ptr.get() + width * height * 4});
     }
-    else
-    {
-        // Error, failed to load the image
-        err() << "Failed to load image from stream. Reason: " << stbi_failure_reason() << std::endl;
-        return false;
-    }
+
+    // Error, failed to load the image
+    err() << "Failed to load image from stream. Reason: " << stbi_failure_reason() << std::endl;
+
+    return std::nullopt;
 }
 
 
@@ -407,13 +383,13 @@ void Image::createMaskFromColor(const Color& color, std::uint8_t alpha)
         return false;
 
     // Make sure the sourceRect components are non-negative before casting them to unsigned values
-    if (sourceRect.left < 0 || sourceRect.top < 0 || sourceRect.width < 0 || sourceRect.height < 0)
+    if (sourceRect.position.x < 0 || sourceRect.position.y < 0 || sourceRect.size.x < 0 || sourceRect.size.y < 0)
         return false;
 
     Rect<unsigned int> srcRect(sourceRect);
 
     // Use the whole source image as srcRect if the provided source rectangle is empty
-    if (srcRect.width == 0 || srcRect.height == 0)
+    if (srcRect.size.x == 0 || srcRect.size.y == 0)
     {
         srcRect = Rect<unsigned int>({0, 0}, source.m_size);
     }
@@ -422,7 +398,7 @@ void Image::createMaskFromColor(const Color& color, std::uint8_t alpha)
     {
         // Checking the bottom right corner is enough because
         // left and top are non-negative and width and height are positive.
-        if (source.m_size.x < srcRect.left + srcRect.width || source.m_size.y < srcRect.top + srcRect.height)
+        if (source.m_size.x < srcRect.position.x + srcRect.size.x || source.m_size.y < srcRect.position.y + srcRect.size.y)
             return false;
     }
 
@@ -431,14 +407,14 @@ void Image::createMaskFromColor(const Color& color, std::uint8_t alpha)
         return false;
 
     // Then find the valid size of the destination rectangle
-    const Vector2u dstSize(std::min(m_size.x - dest.x, srcRect.width), std::min(m_size.y - dest.y, srcRect.height));
+    const Vector2u dstSize(std::min(m_size.x - dest.x, srcRect.size.x), std::min(m_size.y - dest.y, srcRect.size.y));
 
     // Precompute as much as possible
     const std::size_t  pitch     = static_cast<std::size_t>(dstSize.x) * 4;
     const unsigned int srcStride = source.m_size.x * 4;
     const unsigned int dstStride = m_size.x * 4;
 
-    const std::uint8_t* srcPixels = source.m_pixels.data() + (srcRect.left + srcRect.top * source.m_size.x) * 4;
+    const std::uint8_t* srcPixels = source.m_pixels.data() + (srcRect.position.x + srcRect.position.y * source.m_size.x) * 4;
     std::uint8_t*       dstPixels = m_pixels.data() + (dest.x + dest.y * m_size.x) * 4;
 
     // Copy the pixels
@@ -521,11 +497,9 @@ const std::uint8_t* Image::getPixelsPtr() const
     {
         return m_pixels.data();
     }
-    else
-    {
-        err() << "Trying to access the pixels of an empty image" << std::endl;
-        return nullptr;
-    }
+
+    err() << "Trying to access the pixels of an empty image" << std::endl;
+    return nullptr;
 }
 
 

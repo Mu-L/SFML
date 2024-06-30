@@ -144,18 +144,6 @@ public:
     void setScissor(const FloatRect& scissor);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Reset the view to the given rectangle
-    ///
-    /// Note that this function resets the rotation angle to 0.
-    ///
-    /// \param rectangle Rectangle defining the zone to display
-    ///
-    /// \see setCenter, setSize, setRotation
-    ///
-    ////////////////////////////////////////////////////////////
-    void reset(const FloatRect& rectangle);
-
-    ////////////////////////////////////////////////////////////
     /// \brief Get the center of the view
     ///
     /// \return Center of the view
@@ -163,7 +151,7 @@ public:
     /// \see getSize, setCenter
     ///
     ////////////////////////////////////////////////////////////
-    const Vector2f& getCenter() const;
+    [[nodiscard]] const Vector2f& getCenter() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the size of the view
@@ -173,7 +161,7 @@ public:
     /// \see getCenter, setSize
     ///
     ////////////////////////////////////////////////////////////
-    const Vector2f& getSize() const;
+    [[nodiscard]] const Vector2f& getSize() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the current orientation of the view
@@ -183,7 +171,7 @@ public:
     /// \see setRotation
     ///
     ////////////////////////////////////////////////////////////
-    Angle getRotation() const;
+    [[nodiscard]] Angle getRotation() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the target viewport rectangle of the view
@@ -193,7 +181,7 @@ public:
     /// \see setViewport
     ///
     ////////////////////////////////////////////////////////////
-    const FloatRect& getViewport() const;
+    [[nodiscard]] const FloatRect& getViewport() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the scissor rectangle of the view
@@ -203,7 +191,7 @@ public:
     /// \see setScissor
     ///
     ////////////////////////////////////////////////////////////
-    const FloatRect& getScissor() const;
+    [[nodiscard]] const FloatRect& getScissor() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Move the view relatively to its current position
@@ -252,7 +240,7 @@ public:
     /// \see getInverseTransform
     ///
     ////////////////////////////////////////////////////////////
-    const Transform& getTransform() const;
+    [[nodiscard]] const Transform& getTransform() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the inverse projection transform of the view
@@ -264,7 +252,7 @@ public:
     /// \see getTransform
     ///
     ////////////////////////////////////////////////////////////
-    const Transform& getInverseTransform() const;
+    [[nodiscard]] const Transform& getInverseTransform() const;
 
 private:
     ////////////////////////////////////////////////////////////
@@ -339,10 +327,9 @@ private:
 /// Usage example:
 /// \code
 /// sf::RenderWindow window;
-/// sf::View view;
 ///
 /// // Initialize the view to a rectangle located at (100, 100) and with a size of 400x200
-/// view.reset(sf::FloatRect({100, 100}, {400, 200}));
+/// sf::View view(sf::FloatRect({100, 100}, {400, 200}));
 ///
 /// // Rotate it by 45 degrees
 /// view.rotate(sf::degrees(45));

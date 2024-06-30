@@ -65,7 +65,7 @@ public:
     /// \return Read-only access to the sound buffer
     ///
     ////////////////////////////////////////////////////////////
-    const SoundBuffer& getBuffer() const;
+    [[nodiscard]] const SoundBuffer& getBuffer() const;
 
 protected:
     ////////////////////////////////////////////////////////////
@@ -97,8 +97,8 @@ private:
     ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
-    std::vector<std::int16_t> m_samples; //!< Temporary sample buffer to hold the recorded data
-    SoundBuffer               m_buffer;  //!< Sound buffer that will contain the recorded data
+    std::vector<std::int16_t>  m_samples; //!< Temporary sample buffer to hold the recorded data
+    std::optional<SoundBuffer> m_buffer;  //!< Sound buffer that will contain the recorded data
 };
 
 } // namespace sf

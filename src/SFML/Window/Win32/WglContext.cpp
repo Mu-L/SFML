@@ -103,7 +103,7 @@ namespace sf::priv
 ////////////////////////////////////////////////////////////
 String getErrorString(DWORD errorCode)
 {
-    PTCHAR buffer;
+    PTCHAR buffer = nullptr;
     if (FormatMessage(FORMAT_MESSAGE_MAX_WIDTH_MASK | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
                           FORMAT_MESSAGE_IGNORE_INSERTS,
                       nullptr,
@@ -125,7 +125,7 @@ String getErrorString(DWORD errorCode)
 
 
 ////////////////////////////////////////////////////////////
-WglContext::WglContext(WglContext* shared) : WglContext(shared, ContextSettings(), {1u, 1u})
+WglContext::WglContext(WglContext* shared) : WglContext(shared, ContextSettings{}, {1u, 1u})
 {
 }
 
@@ -214,7 +214,7 @@ GlFunctionPointer WglContext::getFunction(const char* name)
         if (address)
         {
             // Test whether the returned value is a valid error code
-            auto errorCode = reinterpret_cast<ptrdiff_t>(address);
+            auto errorCode = reinterpret_cast<std::ptrdiff_t>(address);
 
             if ((errorCode != -1) && (errorCode != 1) && (errorCode != 2) && (errorCode != 3))
                 return address;
@@ -286,12 +286,12 @@ int WglContext::selectBestPixelFormat(HDC deviceContext, unsigned int bitsPerPix
     // we can cache the result of the lookup instead of having to perform it multiple times for the same inputs
     struct PixelFormatCacheEntry
     {
-        unsigned int bitsPerPixel;
-        unsigned int depthBits;
-        unsigned int stencilBits;
-        unsigned int antialiasingLevel;
-        bool         pbuffer;
-        int          bestFormat;
+        unsigned int bitsPerPixel{};
+        unsigned int depthBits{};
+        unsigned int stencilBits{};
+        unsigned int antialiasingLevel{};
+        bool         pbuffer{};
+        int          bestFormat{};
     };
 
     static std::mutex                         cacheMutex;

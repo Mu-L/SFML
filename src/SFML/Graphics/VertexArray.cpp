@@ -126,16 +126,14 @@ FloatRect VertexArray::getBounds() const
 
         return {{left, top}, {right - left, bottom - top}};
     }
-    else
-    {
-        // Array is empty
-        return {};
-    }
+
+    // Array is empty
+    return {};
 }
 
 
 ////////////////////////////////////////////////////////////
-void VertexArray::draw(RenderTarget& target, const RenderStates& states) const
+void VertexArray::draw(RenderTarget& target, RenderStates states) const
 {
     if (!m_vertices.empty())
         target.draw(m_vertices.data(), m_vertices.size(), m_primitiveType, states);

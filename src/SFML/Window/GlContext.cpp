@@ -206,7 +206,7 @@ struct GlContext::SharedContext
         const std::lock_guard lock(mutex);
 
         context.emplace(nullptr);
-        context->initialize(sf::ContextSettings());
+        context->initialize(ContextSettings{});
 
         loadExtensions();
 
@@ -425,7 +425,7 @@ struct GlContext::Impl
     // Structure to track which unshared object belongs to which context
     struct UnsharedGlObject
     {
-        std::uint64_t         contextId;
+        std::uint64_t         contextId{};
         std::shared_ptr<void> object;
     };
 
@@ -461,7 +461,7 @@ struct GlContext::Impl
     ////////////////////////////////////////////////////////////
     std::shared_ptr<UnsharedGlObjects> unsharedGlObjects; //!< The current object's handle to unshared objects
     const std::uint64_t                id{
-        []()
+        []
         {
             static std::atomic<std::uint64_t> atomicId(1); // start at 1, zero is "no context"
             return atomicId.fetch_add(1);
@@ -572,7 +572,7 @@ std::unique_ptr<GlContext> GlContext::create()
 
     sharedContext->context->setActive(false);
 
-    context->initialize(ContextSettings());
+    context->initialize(ContextSettings{});
 
     return context;
 }
@@ -594,7 +594,12 @@ std::unique_ptr<GlContext> GlContext::create(const ContextSettings& settings, co
         !(sharedContext->context->m_settings.attributeFlags & ContextSettings::Core))
     {
         // Re-create our shared context as a core context
-        const ContextSettings sharedSettings(0, 0, 0, settings.majorVersion, settings.minorVersion, settings.attributeFlags);
+        const ContextSettings sharedSettings{/* depthBits */ 0,
+                                             /* stencilBits */ 0,
+                                             /* antialiasingLevel */ 0,
+                                             settings.majorVersion,
+                                             settings.minorVersion,
+                                             settings.attributeFlags};
 
         sharedContext->context.emplace(nullptr, sharedSettings, Vector2u(1, 1));
         sharedContext->context->initialize(sharedSettings);
@@ -638,7 +643,12 @@ std::unique_ptr<GlContext> GlContext::create(const ContextSettings& settings, co
         !(sharedContext->context->m_settings.attributeFlags & ContextSettings::Core))
     {
         // Re-create our shared context as a core context
-        const ContextSettings sharedSettings(0, 0, 0, settings.majorVersion, settings.minorVersion, settings.attributeFlags);
+        const ContextSettings sharedSettings{/* depthBits */ 0,
+                                             /* stencilBits */ 0,
+                                             /* antialiasingLevel */ 0,
+                                             settings.majorVersion,
+                                             settings.minorVersion,
+                                             settings.attributeFlags};
 
         sharedContext->context.emplace(nullptr, sharedSettings, Vector2u(1, 1));
         sharedContext->context->initialize(sharedSettings);
@@ -665,7 +675,7 @@ std::unique_ptr<GlContext> GlContext::create(const ContextSettings& settings, co
 
 
 ////////////////////////////////////////////////////////////
-bool GlContext::isExtensionAvailable(const char* name)
+bool GlContext::isExtensionAvailable(std::string_view name)
 {
     // If this function is called before any context is available,
     // the shared context will be created for the duration of this call
@@ -754,45 +764,35 @@ bool GlContext::setActive(bool active)
                 currentContext.ptr = this;
                 return true;
             }
-            else
-            {
-                return false;
-            }
+
+            return false;
         }
-        else
-        {
-            // This context is already the active one on this thread, don't do anything
-            return true;
-        }
+
+        // This context is already the active one on this thread, don't do anything
+        return true;
     }
-    else
+
+    if (m_impl->id == currentContext.id)
     {
-        if (m_impl->id == currentContext.id)
-        {
-            // We can't and don't need to lock when we are currently creating the shared context
-            std::unique_lock<std::recursive_mutex> lock;
+        // We can't and don't need to lock when we are currently creating the shared context
+        std::unique_lock<std::recursive_mutex> lock;
 
-            if (sharedContext)
-                lock = std::unique_lock(sharedContext->mutex);
+        if (sharedContext)
+            lock = std::unique_lock(sharedContext->mutex);
 
-            // Deactivate the context
-            if (makeCurrent(false))
-            {
-                currentContext.id  = 0;
-                currentContext.ptr = nullptr;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else
+        // Deactivate the context
+        if (makeCurrent(false))
         {
-            // This context is not the active one on this thread, don't do anything
+            currentContext.id  = 0;
+            currentContext.ptr = nullptr;
             return true;
         }
+
+        return false;
     }
+
+    // This context is not the active one on this thread, don't do anything
+    return true;
 }
 
 

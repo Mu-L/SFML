@@ -18,6 +18,7 @@ set(SRC
     ${INCROOT}/GlResource.hpp
     ${INCROOT}/ContextSettings.hpp
     ${INCROOT}/Event.hpp
+    ${INCROOT}/Event.inl
     ${SRCROOT}/InputImpl.hpp
     ${INCROOT}/Joystick.hpp
     ${SRCROOT}/Joystick.cpp
@@ -40,6 +41,7 @@ set(SRC
     ${SRCROOT}/VideoModeImpl.hpp
     ${SRCROOT}/Vulkan.cpp
     ${INCROOT}/Vulkan.hpp
+    ${SRCROOT}/VulkanImpl.hpp
     ${SRCROOT}/Window.cpp
     ${INCROOT}/Window.hpp
     ${SRCROOT}/WindowBase.cpp
@@ -65,7 +67,6 @@ if(SFML_OS_WINDOWS)
         ${SRCROOT}/Win32/SensorImpl.cpp
         ${SRCROOT}/Win32/VideoModeImpl.cpp
         ${SRCROOT}/Win32/VulkanImplWin32.cpp
-        ${SRCROOT}/Win32/VulkanImplWin32.hpp
         ${SRCROOT}/Win32/WindowImplWin32.cpp
         ${SRCROOT}/Win32/WindowImplWin32.hpp
     )
@@ -122,7 +123,6 @@ elseif(SFML_OS_LINUX OR SFML_OS_FREEBSD OR SFML_OS_OPENBSD OR SFML_OS_NETBSD)
             ${SRCROOT}/Unix/Utils.hpp
             ${SRCROOT}/Unix/VideoModeImpl.cpp
             ${SRCROOT}/Unix/VulkanImplX11.cpp
-            ${SRCROOT}/Unix/VulkanImplX11.hpp
             ${SRCROOT}/Unix/WindowImplX11.cpp
             ${SRCROOT}/Unix/WindowImplX11.hpp
         )
@@ -273,8 +273,8 @@ if(SFML_OS_LINUX OR SFML_OS_FREEBSD OR SFML_OS_OPENBSD OR SFML_OS_NETBSD)
         find_package(GBM REQUIRED)
         target_link_libraries(sfml-window PRIVATE DRM::DRM GBM::GBM)
     else()
-        find_package(X11 REQUIRED COMPONENTS Xrandr Xcursor)
-        target_link_libraries(sfml-window PRIVATE X11::X11 X11::Xrandr X11::Xcursor)
+        find_package(X11 REQUIRED COMPONENTS Xrandr Xcursor Xi)
+        target_link_libraries(sfml-window PRIVATE X11::X11 X11::Xrandr X11::Xcursor X11::Xi)
     endif()
 endif()
 target_link_libraries(sfml-window PUBLIC SFML::System)

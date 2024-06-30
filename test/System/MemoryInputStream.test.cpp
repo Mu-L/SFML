@@ -2,6 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <ostream>
 #include <string_view>
 
@@ -15,28 +16,68 @@ TEST_CASE("[System] sf::MemoryInputStream")
         STATIC_CHECK(std::is_nothrow_move_assignable_v<sf::MemoryInputStream>);
     }
 
-    SECTION("Empty stream")
-    {
-        sf::MemoryInputStream mis;
+    using namespace std::literals::string_view_literals;
 
-        CHECK(mis.read(nullptr, 0) == -1);
-        CHECK(mis.seek(0) == -1);
-        CHECK(mis.tell() == -1);
-        CHECK(mis.getSize() == -1);
+    SECTION("open()")
+    {
+        static constexpr auto input = "hello world"sv;
+
+        SECTION("Zero length")
+        {
+            sf::MemoryInputStream memoryInputStream(input.data(), 0);
+            CHECK(memoryInputStream.tell().value() == 0);
+            CHECK(memoryInputStream.getSize().value() == 0);
+        }
+
+        SECTION("Full length")
+        {
+            sf::MemoryInputStream memoryInputStream(input.data(), input.size());
+            CHECK(memoryInputStream.tell().value() == 0);
+            CHECK(memoryInputStream.getSize().value() == input.size());
+        }
     }
 
-    SECTION("Open memory stream")
+    SECTION("read()")
     {
-        using namespace std::literals::string_view_literals;
-        constexpr auto        memoryContents = "hello world"sv;
-        sf::MemoryInputStream mis;
-        mis.open(memoryContents.data(), sizeof(char) * memoryContents.size());
+        static constexpr auto input = "hello world"sv;
+        sf::MemoryInputStream memoryInputStream(input.data(), input.size());
+        CHECK(memoryInputStream.tell().value() == 0);
+        CHECK(memoryInputStream.getSize().value() == input.size());
 
-        char buffer[32];
-        CHECK(mis.read(buffer, 5) == 5);
-        CHECK(std::string_view(buffer, 5) == std::string_view(memoryContents.data(), 5));
-        CHECK(mis.seek(10) == 10);
-        CHECK(mis.tell() == 10);
-        CHECK(mis.getSize() == 11);
+        // Read within input
+        std::array<char, 32> output{};
+        CHECK(memoryInputStream.read(output.data(), 5).value() == 5);
+        CHECK(std::string_view(output.data(), 5) == "hello"sv);
+        CHECK(memoryInputStream.tell().value() == 5);
+        CHECK(memoryInputStream.getSize().value() == input.size());
+
+        // Read beyond input
+        CHECK(memoryInputStream.read(output.data(), 100).value() == 6);
+        CHECK(std::string_view(output.data(), 6) == " world"sv);
+        CHECK(memoryInputStream.tell().value() == 11);
+        CHECK(memoryInputStream.getSize().value() == input.size());
+    }
+
+    SECTION("seek()")
+    {
+        static constexpr auto input = "We Love SFML!"sv;
+        sf::MemoryInputStream memoryInputStream(input.data(), input.size());
+        CHECK(memoryInputStream.tell().value() == 0);
+        CHECK(memoryInputStream.getSize().value() == input.size());
+
+        SECTION("Seek within input")
+        {
+            CHECK(memoryInputStream.seek(0).value() == 0);
+            CHECK(memoryInputStream.tell().value() == 0);
+
+            CHECK(memoryInputStream.seek(5).value() == 5);
+            CHECK(memoryInputStream.tell().value() == 5);
+        }
+
+        SECTION("Seek beyond input")
+        {
+            CHECK(memoryInputStream.seek(1'000).value() == input.size());
+            CHECK(memoryInputStream.tell().value() == input.size());
+        }
     }
 }

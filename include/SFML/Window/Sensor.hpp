@@ -44,11 +44,11 @@ namespace sf::Sensor
 enum class Type
 {
     Accelerometer,    //!< Measures the raw acceleration (m/s^2)
-    Gyroscope,        //!< Measures the raw rotation rates (degrees/s)
+    Gyroscope,        //!< Measures the raw rotation rates (radians/s)
     Magnetometer,     //!< Measures the ambient magnetic field (micro-teslas)
     Gravity,          //!< Measures the direction and intensity of gravity, independent of device acceleration (m/s^2)
     UserAcceleration, //!< Measures the direction and intensity of device acceleration, independent of the gravity (m/s^2)
-    Orientation       //!< Measures the absolute 3D orientation (degrees)
+    Orientation       //!< Measures the absolute 3D orientation (radians)
 };
 
 // NOLINTNEXTLINE(readability-identifier-naming)
@@ -62,7 +62,7 @@ static constexpr unsigned int Count{6}; //!< The total number of sensor types
 /// \return True if the sensor is available, false otherwise
 ///
 ////////////////////////////////////////////////////////////
-SFML_WINDOW_API bool isAvailable(Type sensor);
+[[nodiscard]] SFML_WINDOW_API bool isAvailable(Type sensor);
 
 ////////////////////////////////////////////////////////////
 /// \brief Enable or disable a sensor
@@ -87,7 +87,7 @@ SFML_WINDOW_API void setEnabled(Type sensor, bool enabled);
 /// \return The current sensor value
 ///
 ////////////////////////////////////////////////////////////
-SFML_WINDOW_API Vector3f getValue(Type sensor);
+[[nodiscard]] SFML_WINDOW_API Vector3f getValue(Type sensor);
 } // namespace sf::Sensor
 
 

@@ -333,14 +333,14 @@ VertexBuffer::Usage VertexBuffer::getUsage() const
 ////////////////////////////////////////////////////////////
 bool VertexBuffer::isAvailable()
 {
-    static const bool available = []() -> bool
+    static const bool available = []
     {
         const TransientContextLock contextLock;
 
         // Make sure that extensions are initialized
         sf::priv::ensureExtensionsInit();
 
-        return GLEXT_vertex_buffer_object;
+        return GLEXT_vertex_buffer_object != 0;
     }();
 
     return available;
@@ -348,7 +348,7 @@ bool VertexBuffer::isAvailable()
 
 
 ////////////////////////////////////////////////////////////
-void VertexBuffer::draw(RenderTarget& target, const RenderStates& states) const
+void VertexBuffer::draw(RenderTarget& target, RenderStates states) const
 {
     if (m_buffer && m_size)
         target.draw(*this, 0, m_size, states);

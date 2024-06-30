@@ -31,6 +31,9 @@
 
 #include <SFML/Audio/SoundSource.hpp>
 
+#include <memory>
+
+#include <cstdlib>
 
 namespace sf
 {
@@ -56,7 +59,7 @@ public:
     /// \brief Disallow construction from a temporary sound buffer
     ///
     ////////////////////////////////////////////////////////////
-    explicit Sound(SoundBuffer&& buffer) = delete;
+    explicit Sound(const SoundBuffer&& buffer) = delete;
 
     ////////////////////////////////////////////////////////////
     /// \brief Copy constructor
@@ -127,7 +130,7 @@ public:
     /// \brief Disallow setting from a temporary sound buffer
     ///
     ////////////////////////////////////////////////////////////
-    void setBuffer(SoundBuffer&& buffer) = delete;
+    void setBuffer(const SoundBuffer&& buffer) = delete;
 
     ////////////////////////////////////////////////////////////
     /// \brief Set whether or not the sound should loop after reaching the end
@@ -160,12 +163,23 @@ public:
     void setPlayingOffset(Time timeOffset);
 
     ////////////////////////////////////////////////////////////
+    /// \brief Set the effect processor to be applied to the sound
+    ///
+    /// The effect processor is a callable that will be called
+    /// with sound data to be processed.
+    ///
+    /// \param effectProcessor The effect processor to attach to this sound, attach an empty processor to disable processing
+    ///
+    ////////////////////////////////////////////////////////////
+    void setEffectProcessor(EffectProcessor effectProcessor) override;
+
+    ////////////////////////////////////////////////////////////
     /// \brief Get the audio buffer attached to the sound
     ///
     /// \return Sound buffer attached to the sound
     ///
     ////////////////////////////////////////////////////////////
-    const SoundBuffer& getBuffer() const;
+    [[nodiscard]] const SoundBuffer& getBuffer() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Tell whether or not the sound is in loop mode
@@ -175,7 +189,7 @@ public:
     /// \see setLoop
     ///
     ////////////////////////////////////////////////////////////
-    bool getLoop() const;
+    [[nodiscard]] bool getLoop() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the current playing position of the sound
@@ -185,7 +199,7 @@ public:
     /// \see setPlayingOffset
     ///
     ////////////////////////////////////////////////////////////
-    Time getPlayingOffset() const;
+    [[nodiscard]] Time getPlayingOffset() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the current status of the sound (stopped, paused, playing)
@@ -193,7 +207,7 @@ public:
     /// \return Current status of the sound
     ///
     ////////////////////////////////////////////////////////////
-    Status getStatus() const override;
+    [[nodiscard]] Status getStatus() const override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Overload of assignment operator
@@ -218,18 +232,18 @@ private:
     void detachBuffer();
 
     ////////////////////////////////////////////////////////////
-    /// \brief Re-attach sound to its internal buffer
+    /// \brief Get the sound object
     ///
-    /// This allows the sound buffer to attach back the sounds
-    /// that use it after the sound buffer has been updated.
+    /// \return The sound object
     ///
     ////////////////////////////////////////////////////////////
-    void reattachBuffer();
+    [[nodiscard]] void* getSound() const override;
 
     ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
-    const SoundBuffer* m_buffer{}; //!< Sound buffer bound to the source
+    struct Impl;
+    const std::unique_ptr<Impl> m_impl; //!< Implementation details
 };
 
 } // namespace sf
@@ -260,12 +274,7 @@ private:
 ///
 /// Usage example:
 /// \code
-/// sf::SoundBuffer buffer;
-/// if (!buffer.loadFromFile("sound.wav"))
-/// {
-///     // Handle error...
-/// }
-///
+/// const auto buffer = sf::SoundBuffer::loadFromFile("sound.wav").value();
 /// sf::Sound sound(buffer);
 /// sound.play();
 /// \endcode

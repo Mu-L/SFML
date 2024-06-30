@@ -66,7 +66,7 @@ public:
     /// \see asMilliseconds, asMicroseconds
     ///
     ////////////////////////////////////////////////////////////
-    constexpr float asSeconds() const;
+    [[nodiscard]] constexpr float asSeconds() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Return the time value as a number of milliseconds
@@ -76,7 +76,7 @@ public:
     /// \see asSeconds, asMicroseconds
     ///
     ////////////////////////////////////////////////////////////
-    constexpr std::int32_t asMilliseconds() const;
+    [[nodiscard]] constexpr std::int32_t asMilliseconds() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Return the time value as a number of microseconds
@@ -86,7 +86,7 @@ public:
     /// \see asSeconds, asMilliseconds
     ///
     ////////////////////////////////////////////////////////////
-    constexpr std::int64_t asMicroseconds() const;
+    [[nodiscard]] constexpr std::int64_t asMicroseconds() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Return the time value as a std::chorono::duration
@@ -94,7 +94,7 @@ public:
     /// \return Time in microseconds
     ///
     ////////////////////////////////////////////////////////////
-    constexpr std::chrono::microseconds toDuration() const;
+    [[nodiscard]] constexpr std::chrono::microseconds toDuration() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Implicit conversion to std::chrono::duration
@@ -133,7 +133,7 @@ private:
 /// \see milliseconds, microseconds
 ///
 ////////////////////////////////////////////////////////////
-constexpr Time seconds(float amount);
+[[nodiscard]] constexpr Time seconds(float amount);
 
 ////////////////////////////////////////////////////////////
 /// \relates Time
@@ -146,7 +146,7 @@ constexpr Time seconds(float amount);
 /// \see seconds, microseconds
 ///
 ////////////////////////////////////////////////////////////
-constexpr Time milliseconds(std::int32_t amount);
+[[nodiscard]] constexpr Time milliseconds(std::int32_t amount);
 
 ////////////////////////////////////////////////////////////
 /// \relates Time
@@ -159,7 +159,7 @@ constexpr Time milliseconds(std::int32_t amount);
 /// \see seconds, milliseconds
 ///
 ////////////////////////////////////////////////////////////
-constexpr Time microseconds(std::int64_t amount);
+[[nodiscard]] constexpr Time microseconds(std::int64_t amount);
 
 ////////////////////////////////////////////////////////////
 /// \relates Time

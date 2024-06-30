@@ -79,7 +79,7 @@ public:
     /// \return Handle of the window
     ///
     ////////////////////////////////////////////////////////////
-    WindowHandle getNativeHandle() const override;
+    [[nodiscard]] WindowHandle getNativeHandle() const override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the position of the window
@@ -87,7 +87,7 @@ public:
     /// \return Position of the window, in pixels
     ///
     ////////////////////////////////////////////////////////////
-    Vector2i getPosition() const override;
+    [[nodiscard]] Vector2i getPosition() const override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the position of the window on screen
@@ -103,7 +103,7 @@ public:
     /// \return Size of the window, in pixels
     ///
     ////////////////////////////////////////////////////////////
-    Vector2u getSize() const override;
+    [[nodiscard]] Vector2u getSize() const override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the size of the rendering region of the window
@@ -203,7 +203,7 @@ public:
     /// \return True if window has focus, false otherwise
     ///
     ////////////////////////////////////////////////////////////
-    bool hasFocus() const override;
+    [[nodiscard]] bool hasFocus() const override;
 
 protected:
     ////////////////////////////////////////////////////////////
@@ -284,26 +284,21 @@ private:
     ////////////////////////////////////////////////////////////
     /// \brief Check if a valid version of XRandR extension is present
     ///
-    /// \param xRandRMajor XRandR major version
-    /// \param xRandRMinor XRandR minor version
-    ///
     /// \return True if a valid XRandR version found, false otherwise
     ///
     ////////////////////////////////////////////////////////////
-    bool checkXRandR(int& xRandRMajor, int& xRandRMinor);
+    bool checkXRandR();
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the RROutput of the primary monitor
     ///
     /// \param rootWindow the root window
     /// \param res screen resources
-    /// \param xRandRMajor XRandR major version
-    /// \param xRandRMinor XRandR minor version
     ///
     /// \return RROutput of the primary monitor
     ///
     ////////////////////////////////////////////////////////////
-    RROutput getOutputPrimary(::Window& rootWindow, XRRScreenResources* res, int xRandRMajor, int xRandRMinor);
+    RROutput getOutputPrimary(::Window& rootWindow, XRRScreenResources* res);
 
     ////////////////////////////////////////////////////////////
     /// \brief Get coordinates of the primary monitor

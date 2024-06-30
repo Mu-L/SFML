@@ -8,13 +8,11 @@
 int main()
 {
     // Audio
-    [[maybe_unused]] const sf::InputSoundFile      inputSoundFile;
     [[maybe_unused]] const sf::SoundBufferRecorder soundBufferRecorder;
-    [[maybe_unused]] const sf::Music               music;
 
     // Graphics
     [[maybe_unused]] const sf::Color          color;
-    [[maybe_unused]] const sf::Font           font;
+    [[maybe_unused]] const sf::IntRect        rect;
     [[maybe_unused]] const sf::RenderWindow   renderWindow;
     [[maybe_unused]] const sf::RectangleShape rectangleShape;
     [[maybe_unused]] const sf::Vertex         vertex;
@@ -26,10 +24,9 @@ int main()
     [[maybe_unused]] const sf::UdpSocket udpSocket;
 
     // System
-    [[maybe_unused]] const sf::Angle           angle;
-    [[maybe_unused]] const sf::FileInputStream fileInputStream;
-    [[maybe_unused]] const sf::String          string;
-    [[maybe_unused]] const sf::Time            time;
+    [[maybe_unused]] const sf::Angle  angle;
+    [[maybe_unused]] const sf::String string;
+    [[maybe_unused]] const sf::Time   time;
 
     // Window
     [[maybe_unused]] const sf::Context   context;

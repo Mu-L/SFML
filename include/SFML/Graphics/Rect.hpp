@@ -90,7 +90,7 @@ public:
     /// \see findIntersection
     ///
     ////////////////////////////////////////////////////////////
-    constexpr bool contains(const Vector2<T>& point) const;
+    [[nodiscard]] constexpr bool contains(const Vector2<T>& point) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Check the intersection between two rectangles
@@ -102,45 +102,21 @@ public:
     /// \see contains
     ///
     ////////////////////////////////////////////////////////////
-    constexpr std::optional<Rect<T>> findIntersection(const Rect<T>& rectangle) const;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Get the position of the rectangle's top-left corner
-    ///
-    /// \return Position of rectangle
-    ///
-    /// \see getSize, getCenter
-    ///
-    ////////////////////////////////////////////////////////////
-    constexpr Vector2<T> getPosition() const;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Get the size of the rectangle
-    ///
-    /// \return Size of rectangle
-    ///
-    /// \see getPosition, getCenter
-    ///
-    ////////////////////////////////////////////////////////////
-    constexpr Vector2<T> getSize() const;
+    [[nodiscard]] constexpr std::optional<Rect<T>> findIntersection(const Rect<T>& rectangle) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the position of the center of the rectangle
     ///
     /// \return Center of rectangle
     ///
-    /// \see getSize, getPosition
-    ///
     ////////////////////////////////////////////////////////////
-    constexpr Vector2<T> getCenter() const;
+    [[nodiscard]] constexpr Vector2<T> getCenter() const;
 
     ////////////////////////////////////////////////////////////
     // Member data
     ////////////////////////////////////////////////////////////
-    T left{};   //!< Left coordinate of the rectangle
-    T top{};    //!< Top coordinate of the rectangle
-    T width{};  //!< Width of the rectangle
-    T height{}; //!< Height of the rectangle
+    Vector2<T> position{}; //!< Position of the top-left corner of the rectangle
+    Vector2<T> size{};     //!< Size of the rectangle
 };
 
 ////////////////////////////////////////////////////////////
@@ -149,14 +125,14 @@ public:
 ///
 /// This operator compares strict equality between two rectangles.
 ///
-/// \param left  Left operand (a rectangle)
-/// \param right Right operand (a rectangle)
+/// \param lhs Left operand (a rectangle)
+/// \param rhs Right operand (a rectangle)
 ///
-/// \return True if \a left is equal to \a right
+/// \return True if \a lhs is equal to \a rhs
 ///
 ////////////////////////////////////////////////////////////
 template <typename T>
-[[nodiscard]] constexpr bool operator==(const Rect<T>& left, const Rect<T>& right);
+[[nodiscard]] constexpr bool operator==(const Rect<T>& lhs, const Rect<T>& rhs);
 
 ////////////////////////////////////////////////////////////
 /// \relates Rect
@@ -164,14 +140,14 @@ template <typename T>
 ///
 /// This operator compares strict difference between two rectangles.
 ///
-/// \param left  Left operand (a rectangle)
-/// \param right Right operand (a rectangle)
+/// \param lhs Left operand (a rectangle)
+/// \param rhs Right operand (a rectangle)
 ///
-/// \return True if \a left is not equal to \a right
+/// \return True if \a lhs is not equal to \a rhs
 ///
 ////////////////////////////////////////////////////////////
 template <typename T>
-[[nodiscard]] constexpr bool operator!=(const Rect<T>& left, const Rect<T>& right);
+[[nodiscard]] constexpr bool operator!=(const Rect<T>& lhs, const Rect<T>& rhs);
 
 // Create type aliases for the most common types
 using IntRect   = Rect<int>;
@@ -188,18 +164,18 @@ using FloatRect = Rect<float>;
 ///
 /// A rectangle is defined by its top-left corner and its size.
 /// It is a very simple class defined for convenience, so
-/// its member variables (left, top, width and height) are public
+/// its member variables (position and size) are public
 /// and can be accessed directly, just like the vector classes
 /// (Vector2 and Vector3).
 ///
 /// To keep things simple, sf::Rect doesn't define
 /// functions to emulate the properties that are not directly
-/// members (such as right, bottom, center, etc.), it rather
+/// members (such as right, bottom, etc.), it rather
 /// only provides intersection functions.
 ///
 /// sf::Rect uses the usual rules for its boundaries:
 /// \li The left and top edges are included in the rectangle's area
-/// \li The right (left + width) and bottom (top + height) edges are excluded from the rectangle's area
+/// \li The right and bottom edges are excluded from the rectangle's area
 ///
 /// This means that sf::IntRect({0, 0}, {1, 1}) and sf::IntRect({1, 1}, {1, 1})
 /// don't intersect.
@@ -228,7 +204,7 @@ using FloatRect = Rect<float>;
 /// // Test the intersection between r1 and r2
 /// std::optional<sf::IntRect> result = r1.findIntersection(r2);
 /// // result.has_value() == true
-/// // result.value() == (4, 2, 16, 3)
+/// // result.value() == sf::IntRect({4, 2}, {16, 3})
 /// \endcode
 ///
 ////////////////////////////////////////////////////////////

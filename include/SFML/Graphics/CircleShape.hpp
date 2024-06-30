@@ -72,7 +72,7 @@ public:
     /// \see setRadius
     ///
     ////////////////////////////////////////////////////////////
-    float getRadius() const;
+    [[nodiscard]] float getRadius() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Set the number of points of the circle
@@ -92,7 +92,7 @@ public:
     /// \see setPointCount
     ///
     ////////////////////////////////////////////////////////////
-    std::size_t getPointCount() const override;
+    [[nodiscard]] std::size_t getPointCount() const override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get a point of the circle
@@ -107,7 +107,7 @@ public:
     /// \return index-th point of the shape
     ///
     ////////////////////////////////////////////////////////////
-    Vector2f getPoint(std::size_t index) const override;
+    [[nodiscard]] Vector2f getPoint(std::size_t index) const override;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the geometric center of the circle
@@ -119,7 +119,7 @@ public:
     /// \return The geometric center of the shape
     ///
     ////////////////////////////////////////////////////////////
-    Vector2f getGeometricCenter() const override;
+    [[nodiscard]] Vector2f getGeometricCenter() const override;
 
 private:
     ////////////////////////////////////////////////////////////
@@ -146,7 +146,7 @@ private:
 /// circle.setRadius(150);
 /// circle.setOutlineColor(sf::Color::Red);
 /// circle.setOutlineThickness(5);
-/// circle.setPosition(10, 20);
+/// circle.setPosition({10, 20});
 /// ...
 /// window.draw(circle);
 /// \endcode

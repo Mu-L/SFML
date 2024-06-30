@@ -55,6 +55,7 @@
 namespace sf
 {
 class String;
+class Time;
 
 namespace priv
 {
@@ -121,20 +122,28 @@ public:
     void setJoystickThreshold(float threshold);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Return the next window event available
+    /// \brief Wait for and return the next available window event
     ///
     /// If there's no event available, this function calls the
     /// window's internal event processing function.
-    /// The \a block parameter controls the behavior of the function
-    /// if no event is available: if it is true then the function
-    /// doesn't return until a new event is triggered; otherwise it
-    /// returns false to indicate that no event is available.
     ///
-    /// \param event Event to be returned
-    /// \param block Use true to block the thread until an event arrives
+    /// \param timeout Maximum time to wait (`Time::Zero` for infinite)
+    ///
+    /// \return The event on success, `std::nullopt` otherwise
     ///
     ////////////////////////////////////////////////////////////
-    bool popEvent(Event& event, bool block);
+    [[nodiscard]] std::optional<Event> waitEvent(Time timeout);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Return the next window event, if available
+    ///
+    /// If there's no event available, this function calls the
+    /// window's internal event processing function.
+    ///
+    /// \return The event if available, `std::nullopt` otherwise
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] std::optional<Event> pollEvent();
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the OS-specific handle of the window
@@ -142,7 +151,7 @@ public:
     /// \return Handle of the window
     ///
     ////////////////////////////////////////////////////////////
-    virtual WindowHandle getNativeHandle() const = 0;
+    [[nodiscard]] virtual WindowHandle getNativeHandle() const = 0;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the position of the window
@@ -150,7 +159,7 @@ public:
     /// \return Position of the window, in pixels
     ///
     ////////////////////////////////////////////////////////////
-    virtual Vector2i getPosition() const = 0;
+    [[nodiscard]] virtual Vector2i getPosition() const = 0;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the minimum window rendering region size
@@ -158,7 +167,7 @@ public:
     /// \return Minimum size
     ///
     ////////////////////////////////////////////////////////////
-    std::optional<Vector2u> getMinimumSize() const;
+    [[nodiscard]] std::optional<Vector2u> getMinimumSize() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Get the maximum window rendering region size
@@ -166,7 +175,7 @@ public:
     /// \return Maximum size
     ///
     ////////////////////////////////////////////////////////////
-    std::optional<Vector2u> getMaximumSize() const;
+    [[nodiscard]] std::optional<Vector2u> getMaximumSize() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the position of the window on screen
@@ -182,7 +191,7 @@ public:
     /// \return Size of the window, in pixels
     ///
     ////////////////////////////////////////////////////////////
-    virtual Vector2u getSize() const = 0;
+    [[nodiscard]] virtual Vector2u getSize() const = 0;
 
     ////////////////////////////////////////////////////////////
     /// \brief Change the size of the rendering region of the window
@@ -282,7 +291,7 @@ public:
     /// \return True if window has focus, false otherwise
     ///
     ////////////////////////////////////////////////////////////
-    virtual bool hasFocus() const = 0;
+    [[nodiscard]] virtual bool hasFocus() const = 0;
 
     ////////////////////////////////////////////////////////////
     /// \brief Create a Vulkan rendering surface
@@ -295,6 +304,20 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     bool createVulkanSurface(const VkInstance& instance, VkSurfaceKHR& surface, const VkAllocationCallbacks* allocator) const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Get the fullscreen window
+    ///
+    /// \return The fullscreen window or a null pointer if there is none
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] const WindowImpl* getFullscreenWindow() const;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Set a window as the fullscreen window
+    ///
+    ////////////////////////////////////////////////////////////
+    void setFullscreenWindow() const;
 
 protected:
     ////////////////////////////////////////////////////////////
@@ -325,6 +348,12 @@ private:
     struct JoystickStatesImpl;
 
     ////////////////////////////////////////////////////////////
+    /// \return First event of the queue if available, `std::nullopt` otherwise
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] std::optional<Event> popEvent();
+
+    ////////////////////////////////////////////////////////////
     /// \brief Read the joysticks state and generate the appropriate events
     ///
     ////////////////////////////////////////////////////////////
@@ -335,6 +364,12 @@ private:
     ///
     ////////////////////////////////////////////////////////////
     void processSensorEvents();
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Read joystick, sensors, and OS state and populate event queue
+    ///
+    ////////////////////////////////////////////////////////////
+    void populateEventQueue();
 
     ////////////////////////////////////////////////////////////
     // Member data

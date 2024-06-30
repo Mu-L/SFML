@@ -21,21 +21,15 @@
 ///     sf::RenderWindow window(sf::VideoMode({800, 600}), "SFML window");
 ///
 ///     // Load a sprite to display
-///     sf::Texture texture;
-///     if (!texture.loadFromFile("cute_image.jpg"))
-///         return EXIT_FAILURE;
+///     const auto texture = sf::Texture::loadFromFile("cute_image.jpg").value();
 ///     sf::Sprite sprite(texture);
 ///
 ///     // Create a graphical text to display
-///     sf::Font font;
-///     if (!font.loadFromFile("arial.ttf"))
-///         return EXIT_FAILURE;
+///     const auto font = sf::Font::openFromFile("arial.ttf").value();
 ///     sf::Text text(font, "Hello SFML", 50);
 ///
 ///     // Load a music to play
-///     sf::Music music;
-///     if (!music.openFromFile("nice_music.ogg"))
-///         return EXIT_FAILURE;
+///     auto music = sf::Music::openFromFile("nice_music.ogg").value();
 ///
 ///     // Play the music
 ///     music.play();
@@ -44,10 +38,10 @@
 ///     while (window.isOpen())
 ///     {
 ///         // Process events
-///         for (sf::Event event; window.pollEvent(event);)
+///         while (const std::optional event = window.pollEvent())
 ///         {
 ///             // Close window: exit
-///             if (event.type == sf::Event::Closed)
+///             if (event->is<sf::Event::Closed>())
 ///                 window.close();
 ///         }
 ///

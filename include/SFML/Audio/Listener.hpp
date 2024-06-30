@@ -29,6 +29,7 @@
 ////////////////////////////////////////////////////////////
 #include <SFML/Audio/Export.hpp>
 
+#include <SFML/System/Angle.hpp>
 #include <SFML/System/Vector3.hpp>
 
 
@@ -39,6 +40,24 @@
 ////////////////////////////////////////////////////////////
 namespace sf::Listener
 {
+////////////////////////////////////////////////////////////
+/// \brief Structure defining the properties of a directional cone
+///
+/// Sounds will play at gain 1 when they are positioned
+/// within the inner angle of the cone. Sounds will play
+/// at outerGain when they are positioned outside the
+/// outer angle of the cone. The gain declines linearly
+/// from 1 to outerGain as the sound moves from the inner
+/// angle to the outer angle.
+///
+////////////////////////////////////////////////////////////
+struct Cone
+{
+    Angle innerAngle;  //!< Inner angle
+    Angle outerAngle;  //!< Outer angle
+    float outerGain{}; //!< Outer gain
+};
+
 ////////////////////////////////////////////////////////////
 /// \brief Change the global volume of all the sounds and musics
 ///
@@ -61,7 +80,7 @@ SFML_AUDIO_API void setGlobalVolume(float volume);
 /// \see setGlobalVolume
 ///
 ////////////////////////////////////////////////////////////
-SFML_AUDIO_API float getGlobalVolume();
+[[nodiscard]] SFML_AUDIO_API float getGlobalVolume();
 
 ////////////////////////////////////////////////////////////
 /// \brief Set the position of the listener in the scene
@@ -83,7 +102,7 @@ SFML_AUDIO_API void setPosition(const Vector3f& position);
 /// \see setPosition
 ///
 ////////////////////////////////////////////////////////////
-SFML_AUDIO_API Vector3f getPosition();
+[[nodiscard]] SFML_AUDIO_API Vector3f getPosition();
 
 ////////////////////////////////////////////////////////////
 /// \brief Set the forward vector of the listener in the scene
@@ -110,7 +129,52 @@ SFML_AUDIO_API void setDirection(const Vector3f& direction);
 /// \see setDirection
 ///
 ////////////////////////////////////////////////////////////
-SFML_AUDIO_API Vector3f getDirection();
+[[nodiscard]] SFML_AUDIO_API Vector3f getDirection();
+
+////////////////////////////////////////////////////////////
+/// \brief Set the velocity of the listener in the scene
+///
+/// The default listener's velocity is (0, 0, -1).
+///
+/// \param velocity New listener's velocity
+///
+/// \see getVelocity, getDirection, setUpVector, setPosition
+///
+////////////////////////////////////////////////////////////
+SFML_AUDIO_API void setVelocity(const Vector3f& velocity);
+
+////////////////////////////////////////////////////////////
+/// \brief Get the current forward vector of the listener in the scene
+///
+/// \return Listener's velocity
+///
+/// \see setVelocity
+///
+////////////////////////////////////////////////////////////
+[[nodiscard]] SFML_AUDIO_API Vector3f getVelocity();
+
+////////////////////////////////////////////////////////////
+/// \brief Set the cone properties of the listener in the audio scene
+///
+/// The cone defines how directional attenuation is applied.
+/// The default cone of a sound is {2 * PI, 2 * PI, 1}.
+///
+/// \param cone Cone properties of the listener in the scene
+///
+/// \see getCone
+///
+////////////////////////////////////////////////////////////
+SFML_AUDIO_API void setCone(const Listener::Cone& cone);
+
+////////////////////////////////////////////////////////////
+/// \brief Get the cone properties of the listener in the audio scene
+///
+/// \return Cone properties of the listener
+///
+/// \see setCone
+///
+////////////////////////////////////////////////////////////
+[[nodiscard]] SFML_AUDIO_API Listener::Cone getCone();
 
 ////////////////////////////////////////////////////////////
 /// \brief Set the upward vector of the listener in the scene
@@ -137,7 +201,7 @@ SFML_AUDIO_API void setUpVector(const Vector3f& upVector);
 /// \see setUpVector
 ///
 ////////////////////////////////////////////////////////////
-SFML_AUDIO_API Vector3f getUpVector();
+[[nodiscard]] SFML_AUDIO_API Vector3f getUpVector();
 } // namespace sf::Listener
 
 
@@ -158,10 +222,10 @@ SFML_AUDIO_API Vector3f getUpVector();
 /// Usage example:
 /// \code
 /// // Move the listener to the position (1, 0, -5)
-/// sf::Listener::setPosition(1, 0, -5);
+/// sf::Listener::setPosition({1, 0, -5});
 ///
 /// // Make it face the right axis (1, 0, 0)
-/// sf::Listener::setDirection(1, 0, 0);
+/// sf::Listener::setDirection({1, 0, 0});
 ///
 /// // Reduce the global volume
 /// sf::Listener::setGlobalVolume(50);

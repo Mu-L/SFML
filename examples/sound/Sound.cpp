@@ -13,9 +13,7 @@
 void playSound()
 {
     // Load a sound buffer from a wav file
-    sf::SoundBuffer buffer;
-    if (!buffer.loadFromFile("resources/killdeer.wav"))
-        return;
+    const auto buffer = sf::SoundBuffer::loadFromFile("resources/killdeer.wav").value();
 
     // Display sound information
     std::cout << "killdeer.wav:" << '\n'
@@ -28,7 +26,7 @@ void playSound()
     sound.play();
 
     // Loop while the sound is playing
-    while (sound.getStatus() == sf::Sound::Playing)
+    while (sound.getStatus() == sf::Sound::Status::Playing)
     {
         // Leave some CPU time for other processes
         sf::sleep(sf::milliseconds(100));
@@ -48,9 +46,7 @@ void playSound()
 void playMusic(const std::filesystem::path& filename)
 {
     // Load an ogg music file
-    sf::Music music;
-    if (!music.openFromFile("resources" / filename))
-        return;
+    auto music = sf::Music::openFromFile("resources" / filename).value();
 
     // Display music information
     std::cout << filename << ":" << '\n'
@@ -62,7 +58,7 @@ void playMusic(const std::filesystem::path& filename)
     music.play();
 
     // Loop while the music is playing
-    while (music.getStatus() == sf::Music::Playing)
+    while (music.getStatus() == sf::Music::Status::Playing)
     {
         // Leave some CPU time for other processes
         sf::sleep(sf::milliseconds(100));

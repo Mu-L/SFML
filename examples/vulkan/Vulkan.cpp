@@ -630,7 +630,7 @@ public:
                 gpu = dev;
                 break;
             }
-            else if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+            if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
             {
                 gpu = dev;
             }
@@ -701,12 +701,12 @@ public:
 
             if ((queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) && (surfaceSupported == VK_TRUE))
             {
-                queueFamilyIndex = static_cast<int>(i);
+                queueFamilyIndex = static_cast<std::uint32_t>(i);
                 break;
             }
         }
 
-        if (queueFamilyIndex < 0)
+        if (!queueFamilyIndex.has_value())
         {
             vulkanAvailable = false;
             return;
@@ -717,7 +717,7 @@ public:
         VkDeviceQueueCreateInfo deviceQueueCreateInfo = VkDeviceQueueCreateInfo();
         deviceQueueCreateInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         deviceQueueCreateInfo.queueCount              = 1;
-        deviceQueueCreateInfo.queueFamilyIndex        = static_cast<std::uint32_t>(queueFamilyIndex);
+        deviceQueueCreateInfo.queueFamilyIndex        = *queueFamilyIndex;
         deviceQueueCreateInfo.pQueuePriorities        = &queuePriority;
 
         // Enable the swapchain extension
@@ -743,7 +743,7 @@ public:
         }
 
         // Retrieve a handle to the logical device command queue
-        vkGetDeviceQueue(device, static_cast<std::uint32_t>(queueFamilyIndex), 0, &queue);
+        vkGetDeviceQueue(device, *queueFamilyIndex, 0, &queue);
     }
 
     // Query surface formats and set up swapchain
@@ -923,17 +923,17 @@ public:
 
         // Use the vertex shader SPIR-V code to create a vertex shader module
         {
-            sf::FileInputStream file;
-
-            if (!file.open("resources/shader.vert.spv"))
+            auto file = sf::FileInputStream::open("resources/shader.vert.spv");
+            if (!file)
             {
                 vulkanAvailable = false;
                 return;
             }
 
-            std::vector<std::uint32_t> buffer(static_cast<std::size_t>(file.getSize()) / sizeof(std::uint32_t));
+            const auto                 fileSize = file->getSize().value();
+            std::vector<std::uint32_t> buffer(fileSize / sizeof(std::uint32_t));
 
-            if (file.read(buffer.data(), file.getSize()) != file.getSize())
+            if (file->read(buffer.data(), fileSize) != file->getSize())
             {
                 vulkanAvailable = false;
                 return;
@@ -951,17 +951,17 @@ public:
 
         // Use the fragment shader SPIR-V code to create a fragment shader module
         {
-            sf::FileInputStream file;
-
-            if (!file.open("resources/shader.frag.spv"))
+            auto file = sf::FileInputStream::open("resources/shader.frag.spv");
+            if (!file)
             {
                 vulkanAvailable = false;
                 return;
             }
 
-            std::vector<std::uint32_t> buffer(static_cast<std::size_t>(file.getSize()) / sizeof(std::uint32_t));
+            const auto                 fileSize = file->getSize().value();
+            std::vector<std::uint32_t> buffer(fileSize / sizeof(std::uint32_t));
 
-            if (file.read(buffer.data(), file.getSize()) != file.getSize())
+            if (file->read(buffer.data(), fileSize) != file->getSize())
             {
                 vulkanAvailable = false;
                 return;
@@ -1277,7 +1277,7 @@ public:
         // We want to be able to reset command buffers after submitting them
         VkCommandPoolCreateInfo commandPoolCreateInfo = VkCommandPoolCreateInfo();
         commandPoolCreateInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        commandPoolCreateInfo.queueFamilyIndex        = static_cast<std::uint32_t>(queueFamilyIndex);
+        commandPoolCreateInfo.queueFamilyIndex        = *queueFamilyIndex;
         commandPoolCreateInfo.flags                   = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
         // Create our command pool
@@ -1352,7 +1352,7 @@ public:
         commandBufferAllocateInfo.commandPool                 = commandPool;
         commandBufferAllocateInfo.commandBufferCount          = 1;
 
-        VkCommandBuffer commandBuffer;
+        VkCommandBuffer commandBuffer = nullptr;
 
         if (vkAllocateCommandBuffers(device, &commandBufferAllocateInfo, &commandBuffer) != VK_SUCCESS)
             return false;
@@ -1458,7 +1458,7 @@ public:
             return;
         }
 
-        void* ptr;
+        void* ptr = nullptr;
 
         // Map the buffer into our address space
         if (vkMapMemory(device, stagingBufferMemory, 0, sizeof(vertexData), 0, &ptr) != VK_SUCCESS)
@@ -1537,7 +1537,7 @@ public:
             return;
         }
 
-        void* ptr;
+        void* ptr = nullptr;
 
         // Map the buffer into our address space
         if (vkMapMemory(device, stagingBufferMemory, 0, sizeof(indexData), 0, &ptr) != VK_SUCCESS)
@@ -1689,7 +1689,7 @@ public:
         commandBufferAllocateInfo.commandPool                 = commandPool;
         commandBufferAllocateInfo.commandBufferCount          = 1;
 
-        VkCommandBuffer commandBuffer;
+        VkCommandBuffer commandBuffer = nullptr;
 
         if (vkAllocateCommandBuffers(device, &commandBufferAllocateInfo, &commandBuffer) != VK_SUCCESS)
         {
@@ -1801,13 +1801,15 @@ public:
     void setupTextureImage()
     {
         // Load the image data
-        sf::Image imageData;
+        const auto maybeImageData = sf::Image::loadFromFile("resources/logo.png");
 
-        if (!imageData.loadFromFile("resources/logo.png"))
+        if (!maybeImageData)
         {
             vulkanAvailable = false;
             return;
         }
+
+        const auto& imageData = *maybeImageData;
 
         // Create a staging buffer to transfer the data with
         const VkDeviceSize imageSize = imageData.getSize().x * imageData.getSize().y * 4;
@@ -1820,7 +1822,7 @@ public:
                      stagingBuffer,
                      stagingBufferMemory);
 
-        void* ptr;
+        void* ptr = nullptr;
 
         // Map the buffer into our address space
         if (vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &ptr) != VK_SUCCESS)
@@ -1862,7 +1864,7 @@ public:
         commandBufferAllocateInfo.commandPool                 = commandPool;
         commandBufferAllocateInfo.commandBufferCount          = 1;
 
-        VkCommandBuffer commandBuffer;
+        VkCommandBuffer commandBuffer = nullptr;
 
         if (vkAllocateCommandBuffers(device, &commandBufferAllocateInfo, &commandBuffer) != VK_SUCCESS)
         {
@@ -2431,7 +2433,7 @@ public:
 
         matrixPerspective(projection, fov, aspect, nearPlane, farPlane);
 
-        char* ptr;
+        char* ptr = nullptr;
 
         // Map the current frame's uniform buffer into our address space
         if (vkMapMemory(device, uniformBuffersMemory[currentFrame], 0, sizeof(Matrix) * 3, 0, reinterpret_cast<void**>(&ptr)) !=
@@ -2542,18 +2544,18 @@ public:
         while (window.isOpen())
         {
             // Process events
-            for (sf::Event event; window.pollEvent(event);)
+            while (const std::optional event = window.pollEvent())
             {
-                // Close window: exit
-                if (event.type == sf::Event::Closed)
+                // Window closed or escape key pressed: exit
+                if (event->is<sf::Event::Closed>() ||
+                    (event->is<sf::Event::KeyPressed>() &&
+                     event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape))
+                {
                     window.close();
-
-                // Escape key: exit
-                if ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::Key::Escape))
-                    window.close();
+                }
 
                 // Re-create the swapchain when the window is resized
-                if (event.type == sf::Event::Resized)
+                if (event->is<sf::Event::Resized>())
                     swapchainOutOfDate = true;
             }
 
@@ -2583,7 +2585,7 @@ private:
     VkDebugReportCallbackEXT        debugReportCallback{};
     VkSurfaceKHR                    surface{};
     VkPhysicalDevice                gpu{};
-    int                             queueFamilyIndex{-1};
+    std::optional<std::uint32_t>    queueFamilyIndex;
     VkDevice                        device{};
     VkQueue                         queue{};
     VkSurfaceFormatKHR              swapchainFormat{};

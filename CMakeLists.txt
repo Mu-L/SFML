@@ -204,6 +204,13 @@ if(SFML_ENABLE_SANITIZERS)
     string(APPEND CMAKE_CXX_FLAGS " -fno-omit-frame-pointer -fno-sanitize-recover=all -fsanitize=undefined")
 endif()
 
+option(SFML_ENABLE_STDLIB_ASSERTIONS "Enable standard library assertions" OFF)
+if(SFML_ENABLE_STDLIB_ASSERTIONS)
+    # intentionally using `add_definitions` here to propagate defines to subdirectories
+    add_definitions(-D_GLIBCXX_ASSERTIONS=1)                                   # see https://gcc.gnu.org/wiki/LibstdcxxDebugMode
+    add_definitions(-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE) # see https://libcxx.llvm.org/Hardening.html
+endif()
+
 # set the output directory for SFML DLLs and executables
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
@@ -224,9 +231,12 @@ endif()
 sfml_set_option(SFML_INSTALL_PKGCONFIG_FILES ${SFML_INSTALL_PKGCONFIG_DEFAULT} BOOL "TRUE to automatically install pkg-config files so other projects can find SFML")
 
 if(SFML_INSTALL_PKGCONFIG_FILES)
+    # account for CMAKE_INSTALL_LIBDIR potentially being an absolute path
+    file(RELATIVE_PATH SFML_RELATIVE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX} ${CMAKE_INSTALL_FULL_LIBDIR})
+
     # set pkgconfig install directory
     # this could be e.g. macports on mac or msys2 on windows etc.
-    set(SFML_PKGCONFIG_DIR "/${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+    set(SFML_PKGCONFIG_DIR "/${SFML_RELATIVE_INSTALL_LIBDIR}/pkgconfig")
 
     if(SFML_OS_FREEBSD OR SFML_OS_OPENBSD OR SFML_OS_NETBSD)
         set(SFML_PKGCONFIG_DIR "/libdata/pkgconfig")
@@ -378,14 +388,12 @@ if(SFML_OS_WINDOWS)
     if(NOT SFML_USE_SYSTEM_DEPS)
         # install the binaries of SFML dependencies
         if(ARCH_32BITS)
-            install(DIRECTORY extlibs/bin/x86/ DESTINATION ${CMAKE_INSTALL_BINDIR})
             if(SFML_COMPILER_MSVC OR (SFML_COMPILER_CLANG AND NOT MINGW))
                 install(DIRECTORY extlibs/libs-msvc-universal/x86/ DESTINATION ${CMAKE_INSTALL_LIBDIR})
             else()
                 install(DIRECTORY extlibs/libs-mingw/x86/ DESTINATION ${CMAKE_INSTALL_LIBDIR})
             endif()
         elseif(ARCH_64BITS)
-            install(DIRECTORY extlibs/bin/x64/ DESTINATION ${CMAKE_INSTALL_BINDIR})
             if(SFML_COMPILER_MSVC OR (SFML_COMPILER_CLANG AND NOT MINGW))
                 install(DIRECTORY extlibs/libs-msvc-universal/x64/ DESTINATION ${CMAKE_INSTALL_LIBDIR})
             else()
@@ -421,10 +429,6 @@ elseif(SFML_OS_MACOS)
 
         if(VORBISFILE_LIBRARY STREQUAL "${PROJECT_SOURCE_DIR}/extlibs/libs-macos/Frameworks/vorbisfile.framework")
             install(DIRECTORY extlibs/libs-macos/Frameworks/vorbisfile.framework DESTINATION ${CMAKE_INSTALL_LIBDIR})
-        endif()
-
-        if(OPENAL_LIBRARY STREQUAL "${PROJECT_SOURCE_DIR}/extlibs/libs-macos/Frameworks/OpenAL.framework")
-            install(DIRECTORY "${OPENAL_LIBRARY}" DESTINATION ${CMAKE_INSTALL_LIBDIR})
         endif()
     endif()
 
@@ -471,6 +475,13 @@ endif()
 
 sfml_export_targets()
 
+# configure extras by default when building SFML directly, otherwise hide them
+sfml_set_option(SFML_CONFIGURE_EXTRAS ${PROJECT_IS_TOP_LEVEL} BOOL "TRUE to configure extras, FALSE to ignore them")
+
+if(NOT SFML_CONFIGURE_EXTRAS)
+    return()
+endif()
+
 set(CPACK_PACKAGE_NAME_SUMMARY "Simple and Fast Multimedia Library")
 set(CPACK_PACKAGE_VENDOR "SFML Team")
 set(CPACK_PACKAGE_FILE_NAME "SFML-${PROJECT_VERSION}-${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}-${CMAKE_BUILD_TYPE}")
@@ -491,13 +502,6 @@ set(CPACK_NSIS_INSTALLER_MUI_ICON_CODE "!define MUI_WELCOMEFINISHPAGE_BITMAP \\\
 
 include(CPack)
 
-# configure extras by default when building SFML directly, otherwise hide them
-sfml_set_option(SFML_CONFIGURE_EXTRAS ${PROJECT_IS_TOP_LEVEL} BOOL "TRUE to configure extras, FALSE to ignore them")
-
-if(NOT SFML_CONFIGURE_EXTRAS)
-    return()
-endif()
-
 # add an option for building the API documentation
 sfml_set_option(SFML_BUILD_DOC FALSE BOOL "TRUE to generate the API documentation, FALSE to ignore it")
 if(SFML_BUILD_DOC)
@@ -517,9 +521,7 @@ sfml_set_option(SFML_BUILD_TEST_SUITE FALSE BOOL "TRUE to build the SFML test su
 sfml_set_option(SFML_ENABLE_COVERAGE FALSE BOOL "TRUE to enable coverage reporting, FALSE to ignore it")
 
 if(SFML_BUILD_TEST_SUITE)
-    if(SFML_OS_IOS)
-        message(WARNING "Unit testing not supported on iOS")
-    elseif(SFML_BUILD_WINDOW AND SFML_BUILD_GRAPHICS AND SFML_BUILD_NETWORK AND SFML_BUILD_AUDIO)
+    if(SFML_BUILD_WINDOW AND SFML_BUILD_GRAPHICS AND SFML_BUILD_NETWORK AND SFML_BUILD_AUDIO)
         enable_testing()
         add_subdirectory(test)
     else()

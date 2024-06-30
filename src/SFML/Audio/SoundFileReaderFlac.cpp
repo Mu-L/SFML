@@ -44,63 +44,54 @@ FLAC__StreamDecoderReadStatus streamRead(const FLAC__StreamDecoder*, FLAC__byte 
 {
     auto* data = static_cast<sf::priv::SoundFileReaderFlac::ClientData*>(clientData);
 
-    const std::int64_t count = data->stream->read(buffer, static_cast<std::int64_t>(*bytes));
-    if (count > 0)
+    if (const std::optional count = data->stream->read(buffer, *bytes))
     {
-        *bytes = static_cast<std::size_t>(count);
-        return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
-    }
-    else if (count == 0)
-    {
+        if (*count > 0)
+        {
+            *bytes = *count;
+            return FLAC__STREAM_DECODER_READ_STATUS_CONTINUE;
+        }
+
         return FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM;
     }
-    else
-    {
-        return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
-    }
+
+    return FLAC__STREAM_DECODER_READ_STATUS_ABORT;
 }
 
 FLAC__StreamDecoderSeekStatus streamSeek(const FLAC__StreamDecoder*, FLAC__uint64 absoluteByteOffset, void* clientData)
 {
     auto* data = static_cast<sf::priv::SoundFileReaderFlac::ClientData*>(clientData);
 
-    const std::int64_t position = data->stream->seek(static_cast<std::int64_t>(absoluteByteOffset));
-    if (position >= 0)
+    if (data->stream->seek(static_cast<std::size_t>(absoluteByteOffset)).has_value())
         return FLAC__STREAM_DECODER_SEEK_STATUS_OK;
-    else
-        return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
+
+    return FLAC__STREAM_DECODER_SEEK_STATUS_ERROR;
 }
 
 FLAC__StreamDecoderTellStatus streamTell(const FLAC__StreamDecoder*, FLAC__uint64* absoluteByteOffset, void* clientData)
 {
     auto* data = static_cast<sf::priv::SoundFileReaderFlac::ClientData*>(clientData);
 
-    const std::int64_t position = data->stream->tell();
-    if (position >= 0)
+    if (const std::optional position = data->stream->tell())
     {
-        *absoluteByteOffset = static_cast<FLAC__uint64>(position);
+        *absoluteByteOffset = *position;
         return FLAC__STREAM_DECODER_TELL_STATUS_OK;
     }
-    else
-    {
-        return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
-    }
+
+    return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
 }
 
 FLAC__StreamDecoderLengthStatus streamLength(const FLAC__StreamDecoder*, FLAC__uint64* streamLength, void* clientData)
 {
     auto* data = static_cast<sf::priv::SoundFileReaderFlac::ClientData*>(clientData);
 
-    const std::int64_t count = data->stream->getSize();
-    if (count >= 0)
+    if (const std::optional count = data->stream->getSize())
     {
-        *streamLength = static_cast<FLAC__uint64>(count);
+        *streamLength = *count;
         return FLAC__STREAM_DECODER_LENGTH_STATUS_OK;
     }
-    else
-    {
-        return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
-    }
+
+    return FLAC__STREAM_DECODER_LENGTH_STATUS_ERROR;
 }
 
 FLAC__bool streamEof(const FLAC__StreamDecoder*, void* clientData)
@@ -175,6 +166,69 @@ void streamMetadata(const FLAC__StreamDecoder*, const FLAC__StreamMetadata* meta
         data->info.sampleCount  = meta->data.stream_info.total_samples * meta->data.stream_info.channels;
         data->info.sampleRate   = meta->data.stream_info.sample_rate;
         data->info.channelCount = meta->data.stream_info.channels;
+
+        // For FLAC channel mapping refer to: https://xiph.org/flac/format.html#frame_header
+        switch (data->info.channelCount)
+        {
+            case 0:
+                sf::err() << "No channels in FLAC file" << std::endl;
+                break;
+            case 1:
+                data->info.channelMap = {sf::SoundChannel::Mono};
+                break;
+            case 2:
+                data->info.channelMap = {sf::SoundChannel::FrontLeft, sf::SoundChannel::FrontRight};
+                break;
+            case 3:
+                data->info.channelMap = {sf::SoundChannel::FrontLeft,
+                                         sf::SoundChannel::FrontRight,
+                                         sf::SoundChannel::FrontCenter};
+                break;
+            case 4:
+                data->info.channelMap = {sf::SoundChannel::FrontLeft,
+                                         sf::SoundChannel::FrontRight,
+                                         sf::SoundChannel::BackLeft,
+                                         sf::SoundChannel::BackRight};
+                break;
+            case 5:
+                data->info.channelMap = {sf::SoundChannel::FrontLeft,
+                                         sf::SoundChannel::FrontRight,
+                                         sf::SoundChannel::FrontCenter,
+                                         sf::SoundChannel::BackLeft,
+                                         sf::SoundChannel::BackRight};
+                break;
+            case 6:
+                data->info.channelMap = {sf::SoundChannel::FrontLeft,
+                                         sf::SoundChannel::FrontRight,
+                                         sf::SoundChannel::FrontCenter,
+                                         sf::SoundChannel::LowFrequencyEffects,
+                                         sf::SoundChannel::BackLeft,
+                                         sf::SoundChannel::BackRight};
+                break;
+            case 7:
+                data->info.channelMap = {sf::SoundChannel::FrontLeft,
+                                         sf::SoundChannel::FrontRight,
+                                         sf::SoundChannel::FrontCenter,
+                                         sf::SoundChannel::LowFrequencyEffects,
+                                         sf::SoundChannel::BackCenter,
+                                         sf::SoundChannel::SideLeft,
+                                         sf::SoundChannel::SideRight};
+                break;
+            case 8:
+                data->info.channelMap = {sf::SoundChannel::FrontLeft,
+                                         sf::SoundChannel::FrontRight,
+                                         sf::SoundChannel::FrontCenter,
+                                         sf::SoundChannel::LowFrequencyEffects,
+                                         sf::SoundChannel::BackLeft,
+                                         sf::SoundChannel::BackRight,
+                                         sf::SoundChannel::SideLeft,
+                                         sf::SoundChannel::SideRight};
+                break;
+            default:
+                sf::err() << "FLAC files with more than 8 channels not supported" << std::endl;
+                assert(false);
+                break;
+        }
     }
 }
 
@@ -317,11 +371,9 @@ std::uint64_t SoundFileReaderFlac::read(std::int16_t* samples, std::uint64_t max
             m_clientData.leftovers.swap(leftovers);
             return maxCount;
         }
-        else
-        {
-            // We can use all the leftovers and decode new frames
-            std::copy(m_clientData.leftovers.begin(), m_clientData.leftovers.end(), samples);
-        }
+
+        // We can use all the leftovers and decode new frames
+        std::copy(m_clientData.leftovers.begin(), m_clientData.leftovers.end(), samples);
     }
 
     // Reset the data that will be used in the callback

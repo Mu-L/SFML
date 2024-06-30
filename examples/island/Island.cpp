@@ -37,8 +37,8 @@ const unsigned int blockCount  = 32;
 
 struct WorkItem
 {
-    sf::Vertex*  targetBuffer;
-    unsigned int index;
+    sf::Vertex*  targetBuffer{};
+    unsigned int index{};
 };
 
 std::deque<WorkItem>     workQueue;
@@ -50,8 +50,8 @@ std::recursive_mutex     workQueueMutex;
 
 struct Setting
 {
-    const char* name;
-    float*      value;
+    const char* name{};
+    float*      value{};
 };
 
 // Terrain noise parameters
@@ -91,16 +91,14 @@ int main()
     sf::RenderWindow window(sf::VideoMode({windowWidth, windowHeight}), "SFML Island", sf::Style::Titlebar | sf::Style::Close);
     window.setVerticalSyncEnabled(true);
 
-    sf::Font font;
-    if (!font.loadFromFile("resources/tuffy.ttf"))
-        return EXIT_FAILURE;
+    const auto font = sf::Font::openFromFile("resources/tuffy.ttf").value();
 
     // Create all of our graphics resources
-    sf::Text               hudText(font);
-    sf::Text               statusText(font);
-    sf::Shader             terrainShader;
-    const sf::RenderStates terrainStates(&terrainShader);
-    sf::VertexBuffer       terrain(sf::PrimitiveType::Triangles, sf::VertexBuffer::Usage::Static);
+    sf::Text                  hudText(font);
+    sf::Text                  statusText(font);
+    std::optional<sf::Shader> terrainShader;
+    sf::RenderStates          terrainStates;
+    sf::VertexBuffer          terrain(sf::PrimitiveType::Triangles, sf::VertexBuffer::Usage::Static);
 
     // Set up our text drawables
     statusText.setCharacterSize(28);
@@ -117,18 +115,13 @@ int main()
     // Staging buffer for our terrain data that we will upload to our VertexBuffer
     std::vector<sf::Vertex> terrainStagingBuffer;
 
-    // Check whether the prerequisites are supported
-    bool prerequisitesSupported = sf::VertexBuffer::isAvailable() && sf::Shader::isAvailable();
-
     // Set up our graphics resources and set the status text accordingly
-    if (!prerequisitesSupported)
+    if (!sf::VertexBuffer::isAvailable() || !sf::Shader::isAvailable())
     {
         statusText.setString("Shaders and/or Vertex Buffers Unsupported");
     }
-    else if (!terrainShader.loadFromFile("resources/terrain.vert", "resources/terrain.frag"))
+    else if (!(terrainShader = sf::Shader::loadFromFile("resources/terrain.vert", "resources/terrain.frag")))
     {
-        prerequisitesSupported = false;
-
         statusText.setString("Failed to load shader program");
     }
     else
@@ -153,11 +146,13 @@ int main()
         generateTerrain(terrainStagingBuffer.data());
 
         statusText.setString("Generating Terrain...");
+
+        // Set up the render states
+        terrainStates = sf::RenderStates(&*terrainShader);
     }
 
     // Center the status text
-    statusText.setPosition({(windowWidth - statusText.getLocalBounds().width) / 2.f,
-                            (windowHeight - statusText.getLocalBounds().height) / 2.f});
+    statusText.setPosition((sf::Vector2f(windowWidth, windowHeight) - statusText.getLocalBounds().size) / 2.f);
 
     // Set up an array of pointers to our settings for arrow navigation
     constexpr std::array<Setting, 9> settings = {
@@ -179,20 +174,21 @@ int main()
     while (window.isOpen())
     {
         // Handle events
-        for (sf::Event event; window.pollEvent(event);)
+        while (const std::optional event = window.pollEvent())
         {
             // Window closed or escape key pressed: exit
-            if ((event.type == sf::Event::Closed) ||
-                ((event.type == sf::Event::KeyPressed) && (event.key.code == sf::Keyboard::Key::Escape)))
+            if (event->is<sf::Event::Closed>() ||
+                (event->is<sf::Event::KeyPressed>() &&
+                 event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape))
             {
                 window.close();
                 break;
             }
 
             // Arrow key pressed:
-            if (prerequisitesSupported && (event.type == sf::Event::KeyPressed))
+            if (terrainShader.has_value() && event->is<sf::Event::KeyPressed>())
             {
-                switch (event.key.code)
+                switch (event->getIf<sf::Event::KeyPressed>()->code)
                 {
                     case sf::Keyboard::Key::Enter:
                         generateTerrain(terrainStagingBuffer.data());
@@ -220,7 +216,7 @@ int main()
 
         window.draw(statusText);
 
-        if (prerequisitesSupported)
+        if (terrainShader.has_value())
         {
             {
                 const std::lock_guard lock(workQueueMutex);
@@ -240,7 +236,7 @@ int main()
                         bufferUploadPending = false;
                     }
 
-                    terrainShader.setUniform("lightFactor", lightFactor);
+                    terrainShader->setUniform("lightFactor", lightFactor);
                     window.draw(terrain, terrainStates);
                 }
             }
@@ -346,19 +342,23 @@ sf::Color colorFromFloats(float r, float g, float b)
 
 sf::Color getLowlandsTerrainColor(float moisture)
 {
-    sf::Color color = moisture < 0.27f   ? colorFromFloats(240, 240, 180)
-                      : moisture < 0.3f  ? colorFromFloats(240 - (240 * (moisture - 0.27f) / 0.03f),
-                                                          240 - (40 * (moisture - 0.27f) / 0.03f),
-                                                          180 - (180 * (moisture - 0.27f) / 0.03f))
-                      : moisture < 0.4f  ? colorFromFloats(0, 200, 0)
-                      : moisture < 0.48f ? colorFromFloats(0, 200 - (40 * (moisture - 0.4f) / 0.08f), 0)
-                      : moisture < 0.6f  ? colorFromFloats(0, 160, 0)
-                      : moisture < 0.7f  ? colorFromFloats((34 * (moisture - 0.6f) / 0.1f),
-                                                          160 - (60 * (moisture - 0.6f) / 0.1f),
-                                                          (34 * (moisture - 0.6f) / 0.1f))
-                                         : colorFromFloats(34, 100, 34);
-
-    return color;
+    if (moisture < 0.27f)
+        return colorFromFloats(240, 240, 180);
+    if (moisture < 0.3f)
+        return colorFromFloats(240 - (240 * (moisture - 0.27f) / 0.03f),
+                               240 - (40 * (moisture - 0.27f) / 0.03f),
+                               180 - (180 * (moisture - 0.27f) / 0.03f));
+    if (moisture < 0.4f)
+        return colorFromFloats(0, 200, 0);
+    if (moisture < 0.48f)
+        return colorFromFloats(0, 200 - (40 * (moisture - 0.4f) / 0.08f), 0);
+    if (moisture < 0.6f)
+        return colorFromFloats(0, 160, 0);
+    if (moisture < 0.7f)
+        return colorFromFloats((34 * (moisture - 0.6f) / 0.1f),
+                               160 - (60 * (moisture - 0.6f) / 0.1f),
+                               (34 * (moisture - 0.6f) / 0.1f));
+    return colorFromFloats(34, 100, 34);
 }
 
 
@@ -474,8 +474,8 @@ void processWorkItem(std::vector<sf::Vertex>& vertices, const WorkItem& workItem
     const unsigned int rowEnd   = std::min(rowStart + rowBlockSize, resolutionY);
     const unsigned int rowCount = rowEnd - rowStart;
 
-    const float scalingFactorX = static_cast<float>(windowWidth) / static_cast<float>(resolutionX);
-    const float scalingFactorY = static_cast<float>(windowHeight) / static_cast<float>(resolutionY);
+    const float scalingFactorX = float{windowWidth} / float{resolutionX};
+    const float scalingFactorY = float{windowHeight} / float{resolutionY};
 
     for (unsigned int y = rowStart; y < rowEnd; ++y)
     {

@@ -1,6 +1,7 @@
 #include <SFML/Audio/SoundFileFactory.hpp>
 
 // Other 1st party headers
+#include <SFML/Audio/SoundChannel.hpp>
 #include <SFML/Audio/SoundFileReader.hpp>
 #include <SFML/Audio/SoundFileWriter.hpp>
 
@@ -47,7 +48,7 @@ struct NoopSoundFileWriter : sf::SoundFileWriter
         return false;
     }
 
-    bool open(const std::filesystem::path&, unsigned int, unsigned int) override
+    bool open(const std::filesystem::path&, unsigned int, unsigned int, const std::vector<sf::SoundChannel>&) override
     {
         return false;
     }
@@ -109,37 +110,30 @@ TEST_CASE("[Audio] sf::SoundFileFactory")
 
     SECTION("createReaderFromStream()")
     {
-        sf::FileInputStream stream;
+        std::optional<sf::FileInputStream> stream;
 
-        SECTION("Invalid stream")
+        SECTION("flac")
         {
-            CHECK(!sf::SoundFileFactory::createReaderFromStream(stream));
+            stream = sf::FileInputStream::open("Audio/ding.flac");
         }
 
-        SECTION("Valid file")
+        SECTION("mp3")
         {
-            SECTION("flac")
-            {
-                REQUIRE(stream.open("Audio/ding.flac"));
-            }
-
-            SECTION("mp3")
-            {
-                REQUIRE(stream.open("Audio/ding.mp3"));
-            }
-
-            SECTION("ogg")
-            {
-                REQUIRE(stream.open("Audio/doodle_pop.ogg"));
-            }
-
-            SECTION("wav")
-            {
-                REQUIRE(stream.open("Audio/killdeer.wav"));
-            }
-
-            CHECK(sf::SoundFileFactory::createReaderFromStream(stream));
+            stream = sf::FileInputStream::open("Audio/ding.mp3");
         }
+
+        SECTION("ogg")
+        {
+            stream = sf::FileInputStream::open("Audio/doodle_pop.ogg");
+        }
+
+        SECTION("wav")
+        {
+            stream = sf::FileInputStream::open("Audio/killdeer.wav");
+        }
+
+        REQUIRE(stream);
+        CHECK(sf::SoundFileFactory::createReaderFromStream(*stream));
     }
 
     SECTION("createWriterFromFilename()")

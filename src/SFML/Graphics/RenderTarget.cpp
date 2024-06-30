@@ -279,8 +279,8 @@ IntRect RenderTarget::getViewport(const View& view) const
     const auto [width, height] = Vector2f(getSize());
     const FloatRect& viewport  = view.getViewport();
 
-    return IntRect(Rect<long>({std::lround(width * viewport.left), std::lround(height * viewport.top)},
-                              {std::lround(width * viewport.width), std::lround(height * viewport.height)}));
+    return IntRect(Rect<long>({std::lround(width * viewport.position.x), std::lround(height * viewport.position.y)},
+                              {std::lround(width * viewport.size.x), std::lround(height * viewport.size.y)}));
 }
 
 
@@ -290,8 +290,8 @@ IntRect RenderTarget::getScissor(const View& view) const
     const auto [width, height] = Vector2f(getSize());
     const FloatRect& scissor   = view.getScissor();
 
-    return IntRect(Rect<long>({std::lround(width * scissor.left), std::lround(height * scissor.top)},
-                              {std::lround(width * scissor.width), std::lround(height * scissor.height)}));
+    return IntRect(Rect<long>({std::lround(width * scissor.position.x), std::lround(height * scissor.position.y)},
+                              {std::lround(width * scissor.size.x), std::lround(height * scissor.size.y)}));
 }
 
 
@@ -308,7 +308,7 @@ Vector2f RenderTarget::mapPixelToCoords(const Vector2i& point, const View& view)
     // First, convert from viewport coordinates to homogeneous coordinates
     const FloatRect viewport   = FloatRect(getViewport(view));
     const Vector2f  normalized = Vector2f(-1, 1) +
-                                Vector2f(2, -2).cwiseMul(Vector2f(point) - viewport.getPosition()).cwiseDiv(viewport.getSize());
+                                Vector2f(2, -2).cwiseMul(Vector2f(point) - viewport.position).cwiseDiv(viewport.size);
 
     // Then transform by the inverse of the view matrix
     return view.getInverseTransform().transformPoint(normalized);
@@ -330,8 +330,8 @@ Vector2i RenderTarget::mapCoordsToPixel(const Vector2f& point, const View& view)
 
     // Then convert to viewport coordinates
     const FloatRect viewport = FloatRect(getViewport(view));
-    return Vector2i((normalized.cwiseMul({1, -1}) + sf::Vector2f(1, 1)).cwiseDiv({2, 2}).cwiseMul(viewport.getSize()) +
-                    viewport.getPosition());
+    return Vector2i((normalized.cwiseMul({1, -1}) + sf::Vector2f(1, 1)).cwiseDiv({2, 2}).cwiseMul(viewport.size) +
+                    viewport.position);
 }
 
 
@@ -480,38 +480,36 @@ bool RenderTarget::isSrgb() const
 bool RenderTarget::setActive(bool active)
 {
     // Mark this RenderTarget as active or no longer active in the tracking map
+    const std::lock_guard lock(RenderTargetImpl::getMutex());
+
+    const std::uint64_t contextId = Context::getActiveContextId();
+
+    using RenderTargetImpl::getContextRenderTargetMap;
+    auto&      contextRenderTargetMap = getContextRenderTargetMap();
+    const auto it                     = contextRenderTargetMap.find(contextId);
+
+    if (active)
     {
-        const std::lock_guard lock(RenderTargetImpl::getMutex());
-
-        const std::uint64_t contextId = Context::getActiveContextId();
-
-        using RenderTargetImpl::getContextRenderTargetMap;
-        auto&      contextRenderTargetMap = getContextRenderTargetMap();
-        const auto it                     = contextRenderTargetMap.find(contextId);
-
-        if (active)
+        if (it == contextRenderTargetMap.end())
         {
-            if (it == contextRenderTargetMap.end())
-            {
-                contextRenderTargetMap[contextId] = m_id;
+            contextRenderTargetMap[contextId] = m_id;
 
-                m_cache.glStatesSet = false;
-                m_cache.enable      = false;
-            }
-            else if (it->second != m_id)
-            {
-                it->second = m_id;
-
-                m_cache.enable = false;
-            }
+            m_cache.glStatesSet = false;
+            m_cache.enable      = false;
         }
-        else
+        else if (it->second != m_id)
         {
-            if (it != contextRenderTargetMap.end())
-                contextRenderTargetMap.erase(it);
+            it->second = m_id;
 
             m_cache.enable = false;
         }
+    }
+    else
+    {
+        if (it != contextRenderTargetMap.end())
+            contextRenderTargetMap.erase(it);
+
+        m_cache.enable = false;
     }
 
     return true;
@@ -641,8 +639,8 @@ void RenderTarget::resetGLStates()
 void RenderTarget::initialize()
 {
     // Setup the default and current views
-    m_defaultView.reset(FloatRect({0, 0}, Vector2f(getSize())));
-    m_view = m_defaultView;
+    m_defaultView = View(FloatRect({0, 0}, Vector2f(getSize())));
+    m_view        = m_defaultView;
 
     // Set GL states only on first draw, so that we don't pollute user's states
     m_cache.glStatesSet = false;
@@ -658,13 +656,13 @@ void RenderTarget::applyCurrentView()
 {
     // Set the viewport
     const IntRect viewport    = getViewport(m_view);
-    const int     viewportTop = static_cast<int>(getSize().y) - (viewport.top + viewport.height);
-    glCheck(glViewport(viewport.left, viewportTop, viewport.width, viewport.height));
+    const int     viewportTop = static_cast<int>(getSize().y) - (viewport.position.y + viewport.size.y);
+    glCheck(glViewport(viewport.position.x, viewportTop, viewport.size.x, viewport.size.y));
 
     // Set the scissor rectangle and enable/disable scissor testing
     if (m_view.getScissor() == FloatRect({0, 0}, {1, 1}))
     {
-        if (m_cache.scissorEnabled)
+        if (!m_cache.enable || m_cache.scissorEnabled)
         {
             glCheck(glDisable(GL_SCISSOR_TEST));
             m_cache.scissorEnabled = false;
@@ -673,10 +671,10 @@ void RenderTarget::applyCurrentView()
     else
     {
         const IntRect pixelScissor = getScissor(m_view);
-        const int     scissorTop   = static_cast<int>(getSize().y) - (pixelScissor.top + pixelScissor.height);
-        glCheck(glScissor(pixelScissor.left, scissorTop, pixelScissor.width, pixelScissor.height));
+        const int     scissorTop   = static_cast<int>(getSize().y) - (pixelScissor.position.y + pixelScissor.size.y);
+        glCheck(glScissor(pixelScissor.position.x, scissorTop, pixelScissor.size.x, pixelScissor.size.y));
 
-        if (!m_cache.scissorEnabled)
+        if (!m_cache.enable || !m_cache.scissorEnabled)
         {
             glCheck(glEnable(GL_SCISSOR_TEST));
             m_cache.scissorEnabled = true;
@@ -756,7 +754,7 @@ void RenderTarget::applyStencilMode(const StencilMode& mode)
     // Fast path if we have a default (disabled) stencil mode
     if (mode == StencilMode())
     {
-        if (m_cache.stencilEnabled)
+        if (!m_cache.enable || m_cache.stencilEnabled)
         {
             glCheck(glDisable(GL_STENCIL_TEST));
             glCheck(glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE));
@@ -767,7 +765,7 @@ void RenderTarget::applyStencilMode(const StencilMode& mode)
     else
     {
         // Apply the stencil mode
-        if (!m_cache.stencilEnabled)
+        if (!m_cache.enable || !m_cache.stencilEnabled)
             glCheck(glEnable(GL_STENCIL_TEST));
 
         glCheck(glStencilOp(GL_KEEP,
